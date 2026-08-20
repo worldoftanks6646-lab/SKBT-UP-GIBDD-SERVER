@@ -1,0 +1,24 @@
+[Unit]
+Description=GIBDD Witness FastAPI backend
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=gibdd
+Group=gibdd
+WorkingDirectory=/opt/gibdd-backend
+EnvironmentFile=/etc/gibdd-backend.env
+ExecStartPre=/opt/gibdd-backend/.venv/bin/alembic upgrade head
+ExecStart=/opt/gibdd-backend/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000
+Restart=on-failure
+RestartSec=5
+TimeoutStartSec=60
+PrivateTmp=true
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/gibdd-backend
+
+[Install]
+WantedBy=multi-user.target

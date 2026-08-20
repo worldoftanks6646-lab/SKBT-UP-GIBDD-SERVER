@@ -1,19 +1,8 @@
-from contextlib import asynccontextmanager
-
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.core.database import engine, Base
-from app.api.v1.endpoint import device, message
+from app.api.v1.endpoint import device, message, websocket
 
-
-@asynccontextmanager
-async def lifespan(_app: FastAPI):
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
-    yield
-
-
-app = FastAPI(title="ГИБДД-Очевидец API", lifespan=lifespan)
+app = FastAPI(title="ГИБДД-Очевидец API")
 
 app.add_middleware(
     CORSMiddleware,
@@ -25,6 +14,7 @@ app.add_middleware(
 
 app.include_router(device.router, prefix="/api/v1")
 app.include_router(message.router, prefix="/api/v1")
+app.include_router(websocket.router, prefix="/api/v1")
 
 @app.get("/api/health")
 async def health_check():

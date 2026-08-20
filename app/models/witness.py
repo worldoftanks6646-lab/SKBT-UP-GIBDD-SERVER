@@ -1,7 +1,7 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, SmallInteger, Text
+from sqlalchemy import CheckConstraint, DateTime, ForeignKey, SmallInteger, Text, text
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -23,7 +23,9 @@ class Witness(Base):
         unique=True,
         nullable=False,
     )
-    ban_level: Mapped[int] = mapped_column(SmallInteger, default=0, nullable=False)
+    ban_level: Mapped[int] = mapped_column(
+        SmallInteger, default=0, server_default=text("0"), nullable=False
+    )
     banned_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     ban_reason: Mapped[str | None] = mapped_column(Text)
 

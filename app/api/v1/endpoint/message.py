@@ -13,6 +13,7 @@ from app.services.message_service import (
     MessageNotFoundError,
     MessageService,
 )
+from app.services.websocket_manager import chat_connections
 
 
 router = APIRouter(prefix="/chats", tags=["messages"])
@@ -35,9 +36,14 @@ async def create_text_message(
     db: AsyncSession = Depends(get_db),
 ) -> MessageResponse:
     try:
-        return await MessageService.create_text_message(
+        message = await MessageService.create_text_message(
             db, chat_id, request.sender_device_id, request.text
         )
+        await chat_connections.broadcast(
+            chat_id,
+            {"event": "message.created", "data": message.model_dump(mode="json")},
+        )
+        return message
     except (ChatNotFoundError, DeviceNotFoundError, ChatAccessDeniedError) as error:
         raise message_error_to_http(error) from error
 
