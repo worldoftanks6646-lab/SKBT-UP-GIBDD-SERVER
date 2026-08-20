@@ -33,3 +33,6 @@ class Witness(Base):
     chat = relationship(
         "Chat", back_populates="witness", uselist=False, cascade="all, delete-orphan"
     )
+    bans = relationship(
+        "WitnessBan", back_populates="witness", cascade="all, delete-orphan"
+    )

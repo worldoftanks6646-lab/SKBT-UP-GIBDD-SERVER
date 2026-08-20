@@ -5,6 +5,7 @@ from app.models.message import Message, MessageSenderType, MessageType
 from app.models.role import Role, RoleCode
 from app.models.role_assignment import RoleAssignment
 from app.models.witness import Witness
+from app.models.witness_ban import WitnessBan
 
 __all__ = [
     "Chat",
@@ -18,4 +19,5 @@ __all__ = [
     "RoleAssignment",
     "RoleCode",
     "Witness",
+    "WitnessBan",
 ]

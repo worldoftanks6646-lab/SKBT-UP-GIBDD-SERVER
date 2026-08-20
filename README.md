@@ -38,6 +38,9 @@ pytest -q
 - `GET /api/v1/chats/{chat_id}/messages` — история сообщений;
 - `PATCH /api/v1/chats/{chat_id}/messages/{message_id}/read` — отметка о прочтении;
 - `WS /api/v1/ws/chats/{chat_id}?device_id={device_id}` — события чата в реальном времени.
+- `POST /api/v1/witnesses/{witness_id}/bans` — выдать бан;
+- `GET /api/v1/witnesses/{witness_id}/bans` — история банов;
+- `PATCH /api/v1/witnesses/{witness_id}/bans/{ban_id}/revoke` — снять бан.
 
 ## Развёртывание
 
