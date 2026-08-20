@@ -47,3 +47,4 @@ class Device(Base):
     employee = relationship(
         "Employee", back_populates="device", uselist=False, cascade="all, delete-orphan"
     )
+    messages = relationship("Message", back_populates="sender_device")

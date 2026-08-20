@@ -27,3 +27,6 @@ class Chat(Base):
     last_message_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     witness = relationship("Witness", back_populates="chat")
+    messages = relationship(
+        "Message", back_populates="chat", cascade="all, delete-orphan"
+    )
