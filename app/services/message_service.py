@@ -66,7 +66,8 @@ class MessageService:
             has_role = (
                 await db.scalar(
                     select(RoleAssignment.id).where(
-                        RoleAssignment.employee_id == employee_id
+                        RoleAssignment.employee_id == employee_id,
+                        RoleAssignment.revoked_at.is_(None),
                     )
                 )
                 if employee_id is not None

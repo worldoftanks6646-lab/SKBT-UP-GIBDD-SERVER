@@ -18,7 +18,6 @@ class RoleAssignment(Base):
     employee_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True),
         ForeignKey("employees.id", ondelete="CASCADE"),
-        unique=True,
         nullable=False,
     )
     role_id: Mapped[uuid.UUID] = mapped_column(
@@ -27,6 +26,12 @@ class RoleAssignment(Base):
     assigned_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
     )
+    assigned_by_employee_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("employees.id")
+    )
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
-    employee = relationship("Employee", back_populates="role_assignment")
+    employee = relationship(
+        "Employee", back_populates="role_assignments", foreign_keys=[employee_id]
+    )
     role = relationship("Role", back_populates="assignments")

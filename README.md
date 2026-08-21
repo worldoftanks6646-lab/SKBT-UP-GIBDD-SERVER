@@ -50,6 +50,9 @@ pytest -q
 - `POST /api/v1/witnesses/{witness_id}/bans` — выдать бан;
 - `GET /api/v1/witnesses/{witness_id}/bans` — история банов;
 - `PATCH /api/v1/witnesses/{witness_id}/bans/{ban_id}/revoke` — снять бан.
+- `PUT /api/v1/employees/{employee_id}/role` — назначить или изменить роль;
+- `DELETE /api/v1/employees/{employee_id}/role` — снять роль;
+- `GET /api/v1/employees/{employee_id}/roles/history` — история ролей.
 
 ## Развёртывание
 

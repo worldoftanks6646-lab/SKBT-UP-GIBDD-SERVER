@@ -35,7 +35,7 @@ class BanPermissionDeniedError(PermissionError):
 
 class BanService:
     @staticmethod
-    async def _require_chief(db: AsyncSession, device_id: UUID) -> Employee:
+    async def _require_ban_manager(db: AsyncSession, device_id: UUID) -> Employee:
         employee = await db.scalar(
             select(Employee)
             .join(Device, Device.id == Employee.device_id)
@@ -44,18 +44,23 @@ class BanService:
             .where(
                 Device.id == device_id,
                 Device.type == DeviceType.EMPLOYEE,
-                Role.code == RoleCode.CHIEF,
+                Role.code.in_([RoleCode.ADMINISTRATOR, RoleCode.CHIEF]),
+                RoleAssignment.revoked_at.is_(None),
             )
         )
         if employee is None:
-            raise BanPermissionDeniedError("Only chief can manage witness bans")
+            raise BanPermissionDeniedError(
+                "Only administrator or chief can manage witness bans"
+            )
         return employee
 
     @staticmethod
     async def issue(
         db: AsyncSession, witness_id: UUID, payload: BanCreateRequest
     ) -> BanResponse:
-        chief = await BanService._require_chief(db, payload.issued_by_device_id)
+        manager = await BanService._require_ban_manager(
+            db, payload.issued_by_device_id
+        )
         witness = await db.get(Witness, witness_id)
         if witness is None:
             raise WitnessNotFoundError("Witness not found")
@@ -74,7 +79,7 @@ class BanService:
             witness_id=witness.id,
             ban_level=payload.ban_level,
             reason=payload.reason,
-            issued_by_employee_id=chief.id,
+            issued_by_employee_id=manager.id,
             expires_at=payload.expires_at,
         )
         db.add(ban)
@@ -89,7 +94,7 @@ class BanService:
     async def history(
         db: AsyncSession, witness_id: UUID, requester_device_id: UUID
     ) -> BanListResponse:
-        await BanService._require_chief(db, requester_device_id)
+        await BanService._require_ban_manager(db, requester_device_id)
         if await db.get(Witness, witness_id) is None:
             raise WitnessNotFoundError("Witness not found")
         bans = list(
@@ -107,7 +112,9 @@ class BanService:
     async def revoke(
         db: AsyncSession, witness_id: UUID, ban_id: UUID, payload: BanRevokeRequest
     ) -> BanResponse:
-        chief = await BanService._require_chief(db, payload.revoked_by_device_id)
+        manager = await BanService._require_ban_manager(
+            db, payload.revoked_by_device_id
+        )
         witness = await db.get(Witness, witness_id)
         if witness is None:
             raise WitnessNotFoundError("Witness not found")
@@ -118,7 +125,7 @@ class BanService:
             raise BanConflictError("Ban has already been revoked")
 
         ban.revoked_at = datetime.now(timezone.utc)
-        ban.revoked_by_employee_id = chief.id
+        ban.revoked_by_employee_id = manager.id
         ban.comment = payload.comment
         witness.ban_level = 0
         witness.banned_at = None

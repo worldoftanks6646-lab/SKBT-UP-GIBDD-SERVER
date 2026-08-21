@@ -29,9 +29,9 @@ class Employee(Base):
     )
 
     device = relationship("Device", back_populates="employee")
-    role_assignment = relationship(
+    role_assignments = relationship(
         "RoleAssignment",
         back_populates="employee",
-        uselist=False,
         cascade="all, delete-orphan",
+        foreign_keys="RoleAssignment.employee_id",
     )

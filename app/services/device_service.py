@@ -47,7 +47,10 @@ class DeviceService:
             response.role = await db.scalar(
                 select(Role.code)
                 .join(RoleAssignment, RoleAssignment.role_id == Role.id)
-                .where(RoleAssignment.employee_id == employee.id)
+                .where(
+                    RoleAssignment.employee_id == employee.id,
+                    RoleAssignment.revoked_at.is_(None),
+                )
             )
 
         return response
