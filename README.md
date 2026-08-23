@@ -45,6 +45,7 @@ pytest -q
 Подробный контракт и инструкция для frontend находятся в [docs/api.md](docs/api.md).
 
 - `POST /api/v1/devices/register` — регистрация устройства;
+- `GET /api/v1/chats` — список чатов для сотрудника;
 - `POST /api/v1/chats/{chat_id}/messages` — отправка сообщения;
 - `GET /api/v1/chats/{chat_id}/messages` — история сообщений;
 - `PATCH /api/v1/chats/{chat_id}/messages/{message_id}/read` — отметка о прочтении;

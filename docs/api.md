@@ -60,6 +60,7 @@ http://193.124.115.164:4402/openapi.json
 GET    /api/health
 POST   /api/v1/devices/register
 
+GET    /api/v1/chats
 POST   /api/v1/chats/{chat_id}/messages
 GET    /api/v1/chats/{chat_id}/messages
 PATCH  /api/v1/chats/{chat_id}/messages/{message_id}/read
@@ -185,6 +186,43 @@ employee — Сотрудник
 - `403` — устройство не имеет доступа к этому чату;
 - `404` — чат или устройство не найдено;
 - `422` — неверный UUID или пустой текст.
+
+## GET /api/v1/chats
+
+Возвращает сотруднику с активной ролью список чатов, отсортированный от самого свежего к самому старому.
+
+```text
+GET /api/v1/chats?requester_device_id={device_id}&limit=50
+```
+
+Параметры:
+
+- `requester_device_id` — `device_id` сотрудника;
+- `limit` — от 1 до 100, по умолчанию 50;
+- `before` — необязательная дата ISO 8601 для следующей страницы.
+
+Ответ:
+
+```json
+{
+  "items": [
+    {
+      "id": "65cb767f-d939-466e-beaf-8334c97f0612",
+      "witness_id": "4b4f5672-888e-49a9-8e44-d0052a2e7830",
+      "created_at": "2026-08-20T07:00:00Z",
+      "last_message_at": "2026-08-20T07:14:09Z",
+      "last_message_text": "Сообщение очевидца",
+      "unread_count": 1
+    }
+  ],
+  "next_before": null
+}
+```
+
+Ошибки:
+
+- `403` — сотруднику ещё не назначена роль;
+- `404` — переданный `device_id` не принадлежит сотруднику.
 
 ## GET /api/v1/chats/{chat_id}/messages
 
@@ -373,11 +411,12 @@ GET /api/v1/employees/{employee_id}/roles/history?requester_device_id={device_id
 2. Зарегистрироваться с `type: employee`.
 3. Сохранить `device_id`, `employee_id`, `role`.
 4. Устройство без роли пока не имеет доступа к сообщениям.
-5. После назначения роли использовать `chat_id` выбранного чата.
-6. Загружать историю и подключать WebSocket.
-7. Для администратора и начальника использовать маршруты ролей и банов.
+5. После назначения роли получить список через `GET /api/v1/chats`.
+6. Использовать `id` выбранного чата как `chat_id`.
+7. Загружать историю и подключать WebSocket.
+8. Для администратора и начальника использовать маршруты ролей и банов.
 
-Регистрацию сотрудника, роли и работу с известным `chat_id` уже можно проверять. Получение списка чатов сотрудником пока отсутствует, поэтому для тестирования чата его `chat_id` необходимо временно передавать вручную.
+Регистрацию сотрудника, список чатов, роли и сообщения уже можно проверять через публичный сервер.
 
 ## Пример Retrofit
 
@@ -385,6 +424,12 @@ GET /api/v1/employees/{employee_id}/roles/history?requester_device_id={device_id
 interface GibddApi {
     @POST("api/v1/devices/register")
     suspend fun register(@Body body: RegisterRequest): RegisterResponse
+
+    @GET("api/v1/chats")
+    suspend fun chats(
+        @Query("requester_device_id") deviceId: String,
+        @Query("limit") limit: Int = 50
+    ): ChatListResponse
 
     @GET("api/v1/chats/{chatId}/messages")
     suspend fun messages(
@@ -405,7 +450,6 @@ val retrofit = Retrofit.Builder()
 ## Ещё не реализовано
 
 - access-токены и полноценная авторизация;
-- получение списка чатов сотрудником;
 - назначение роли напрямую по `device_id` QR-кода;
 - ответы сотрудников только предопределёнными шаблонами;
 - автоматический срок и автоматическое завершение бана;
