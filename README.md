@@ -49,6 +49,8 @@ pytest -q
 - `POST /api/v1/chats/{chat_id}/messages` — отправка сообщения;
 - `GET /api/v1/chats/{chat_id}/messages` — история сообщений;
 - `PATCH /api/v1/chats/{chat_id}/messages/{message_id}/read` — отметка о прочтении;
+- `POST /api/v1/chats/{chat_id}/media` — отправка фото, GIF или видео;
+- `GET /api/v1/media/{attachment_id}` — получение медиафайла;
 - `WS /api/v1/ws/chats/{chat_id}?device_id={device_id}` — события чата в реальном времени.
 - `POST /api/v1/witnesses/{witness_id}/bans` — выдать бан;
 - `GET /api/v1/witnesses/{witness_id}/bans` — история банов;

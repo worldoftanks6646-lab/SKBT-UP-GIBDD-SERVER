@@ -59,6 +59,8 @@ GET    /api/v1/chats
 POST   /api/v1/chats/{chat_id}/messages
 GET    /api/v1/chats/{chat_id}/messages
 PATCH  /api/v1/chats/{chat_id}/messages/{message_id}/read
+POST   /api/v1/chats/{chat_id}/media
+GET    /api/v1/media/{attachment_id}
 WS     /api/v1/ws/chats/{chat_id}?device_id={device_id}
 
 POST   /api/v1/witnesses/{witness_id}/bans
@@ -254,6 +256,63 @@ PATCH /api/v1/chats/{chat_id}/messages/{message_id}/read?requester_device_id={de
 
 Повторный вызов возвращает прежнее время. Отправитель не может отметить собственное сообщение прочитанным.
 
+## POST /api/v1/chats/{chat_id}/media
+
+Загружает медиафайл и создаёт сообщение типа `media`. Используется `multipart/form-data`.
+
+Поля формы:
+
+- `sender_device_id` — UUID устройства отправителя;
+- `file` — файл JPEG, PNG, GIF, MP4 или MOV размером до 100 МБ.
+
+```bash
+curl -X POST "https://силенок.рф:4402/api/v1/chats/{chat_id}/media" \
+  -F "sender_device_id={device_id}" \
+  -F "file=@photo.jpg;type=image/jpeg"
+```
+
+Ответ `201 Created` содержит объект сообщения и вложения:
+
+```json
+{
+  "message": {
+    "id": "UUID",
+    "chat_id": "UUID",
+    "sender_device_id": "UUID",
+    "sender_type": "witness",
+    "message_type": "media",
+    "text": null,
+    "sent_at": "2026-08-23T12:00:00Z",
+    "read_at": null,
+    "deleted": false,
+    "attachment_id": "UUID"
+  },
+  "attachment": {
+    "id": "UUID",
+    "message_id": "UUID",
+    "media_type": "photo",
+    "mime_type": "image/jpeg",
+    "original_name": "photo.jpg",
+    "size_bytes": 12345,
+    "uploaded_at": "2026-08-23T12:00:00Z",
+    "expires_at": "2026-08-30T12:00:00Z",
+    "download_url": "/api/v1/media/UUID"
+  }
+}
+```
+
+Забаненный очевидец получает `403` и не может загрузить файл. Медиа хранится 7 дней; каждое успешное скачивание продлевает срок ещё на 7 дней.
+
+## GET /api/v1/media/{attachment_id}
+
+Возвращает файл пользователю, имеющему доступ к его чату:
+
+```text
+GET /api/v1/media/{attachment_id}?requester_device_id={device_id}
+```
+
+В истории сообщений поле `attachment_id` содержит идентификатор файла. Ошибки: `403` при отсутствии доступа, `404` для отсутствующего или просроченного файла.
+
 ## WebSocket
 
 Подключение к событиям конкретного чата:
@@ -448,7 +507,6 @@ val retrofit = Retrofit.Builder()
 - назначение роли напрямую по `device_id` QR-кода;
 - ответы сотрудников только предопределёнными шаблонами;
 - автоматический срок и автоматическое завершение бана;
-- медиафайлы;
 - статическая и live-геопозиция;
 - push-уведомления и чат уведомлений начальника;
 - Excel-отчёты;

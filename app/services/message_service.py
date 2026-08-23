@@ -7,6 +7,7 @@ from sqlalchemy.sql import func
 
 from app.models import (
     Chat,
+    Attachment,
     Device,
     DeviceType,
     Employee,
@@ -129,7 +130,22 @@ class MessageService:
         messages = messages[:limit]
         next_before = messages[-1].sent_at if has_more and messages else None
         messages.reverse()
-        return MessageListResponse(items=messages, next_before=next_before)
+        attachment_rows = (
+            await db.execute(
+                select(Attachment.message_id, Attachment.id).where(
+                    Attachment.message_id.in_([message.id for message in messages]),
+                    Attachment.deleted_at.is_(None),
+                )
+            )
+        ).all() if messages else []
+        attachment_ids = dict(attachment_rows)
+        items = [
+            MessageResponse.model_validate(message).model_copy(
+                update={"attachment_id": attachment_ids.get(message.id)}
+            )
+            for message in messages
+        ]
+        return MessageListResponse(items=items, next_before=next_before)
 
     @staticmethod
     async def mark_as_read(

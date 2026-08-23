@@ -28,6 +28,7 @@ class MessageResponse(BaseModel):
     sent_at: datetime
     read_at: datetime | None
     deleted: bool
+    attachment_id: UUID | None = None
 
 
 class MessageListResponse(BaseModel):

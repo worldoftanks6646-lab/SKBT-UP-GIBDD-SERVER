@@ -63,3 +63,6 @@ class Message(Base):
 
     chat = relationship("Chat", back_populates="messages")
     sender_device = relationship("Device", back_populates="messages")
+    attachments = relationship(
+        "Attachment", back_populates="message", cascade="all, delete-orphan"
+    )

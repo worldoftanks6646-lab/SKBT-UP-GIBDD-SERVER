@@ -1,3 +1,4 @@
+from app.models.attachment import Attachment, MediaType
 from app.models.chat import Chat
 from app.models.device import Device, DeviceType
 from app.models.employee import Employee
@@ -8,6 +9,7 @@ from app.models.witness import Witness
 from app.models.witness_ban import WitnessBan
 
 __all__ = [
+    "Attachment",
     "Chat",
     "Device",
     "DeviceType",
@@ -15,6 +17,7 @@ __all__ = [
     "Message",
     "MessageSenderType",
     "MessageType",
+    "MediaType",
     "Role",
     "RoleAssignment",
     "RoleCode",
