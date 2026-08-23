@@ -17,6 +17,7 @@ from app.models import (
     Witness,
 )
 from app.schemas.message import MessageListResponse, MessageResponse
+from app.services.witness_access import witness_has_active_ban
 
 
 class ChatNotFoundError(ValueError):
@@ -57,7 +58,7 @@ class MessageService:
             )
             if witness is None or witness.id != chat.witness_id:
                 raise ChatAccessDeniedError("Device has no access to this chat")
-            if witness.ban_level > 0:
+            if await witness_has_active_ban(db, witness):
                 raise ChatAccessDeniedError("Banned witness cannot access the chat")
         else:
             employee_id = await db.scalar(

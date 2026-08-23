@@ -7,7 +7,7 @@
 Публичный тестовый сервер запущен и доступен по адресу:
 
 ```text
-http://193.124.115.164:4402
+https://силенок.рф:4402
 ```
 
 Состояние на 21 августа 2026 года:
@@ -21,28 +21,23 @@ http://193.124.115.164:4402
 Для Retrofit адрес должен заканчиваться `/`:
 
 ```kotlin
-const val BASE_URL = "http://193.124.115.164:4402/"
+const val BASE_URL = "https://силенок.рф:4402/"
 ```
 
 Swagger и OpenAPI:
 
 ```text
-http://193.124.115.164:4402/docs
-http://193.124.115.164:4402/openapi.json
+https://силенок.рф:4402/docs
+https://силенок.рф:4402/openapi.json
 ```
 
-Пока используется HTTP. Для тестового APK добавьте в `AndroidManifest.xml`:
+Для Android-приложения добавьте разрешение доступа в интернет в `AndroidManifest.xml`:
 
 ```xml
 <uses-permission android:name="android.permission.INTERNET" />
-
-<application
-    android:usesCleartextTraffic="true"
-    ...>
-</application>
 ```
 
-Для production потребуется HTTPS, после чего WebSocket-адрес изменится с `ws://` на `wss://`.
+API использует HTTPS, а WebSocket подключается через `wss://`. Разрешать cleartext HTTP в приложении не требуется.
 
 ## Общие правила
 
@@ -80,7 +75,7 @@ GET    /api/v1/employees/{employee_id}/roles/history
 Проверяет доступность backend. Авторизация не нужна.
 
 ```bash
-curl http://193.124.115.164:4402/api/health
+curl https://силенок.рф:4402/api/health
 ```
 
 Ответ `200 OK`:
@@ -264,7 +259,7 @@ PATCH /api/v1/chats/{chat_id}/messages/{message_id}/read?requester_device_id={de
 Подключение к событиям конкретного чата:
 
 ```text
-ws://193.124.115.164:4402/api/v1/ws/chats/{chat_id}?device_id={device_id}
+wss://силенок.рф:4402/api/v1/ws/chats/{chat_id}?device_id={device_id}
 ```
 
 Backend проверяет доступ устройства к чату. После создания сообщения отправляется событие:
@@ -442,7 +437,7 @@ interface GibddApi {
 
 ```kotlin
 val retrofit = Retrofit.Builder()
-    .baseUrl("http://193.124.115.164:4402/")
+    .baseUrl("https://силенок.рф:4402/")
     .addConverterFactory(GsonConverterFactory.create())
     .build()
 ```
@@ -457,7 +452,6 @@ val retrofit = Retrofit.Builder()
 - статическая и live-геопозиция;
 - push-уведомления и чат уведомлений начальника;
 - Excel-отчёты;
-- TLS/HTTPS.
 
 Frontend не должен вызывать отсутствующие маршруты до их реализации.
 

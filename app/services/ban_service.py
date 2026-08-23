@@ -1,8 +1,9 @@
 from datetime import datetime, timezone
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.sql import func
 
 from app.models import (
     Device,
@@ -68,6 +69,10 @@ class BanService:
             select(WitnessBan).where(
                 WitnessBan.witness_id == witness.id,
                 WitnessBan.revoked_at.is_(None),
+                or_(
+                    WitnessBan.expires_at.is_(None),
+                    WitnessBan.expires_at > func.now(),
+                ),
             )
         )
         if active_ban is not None:
