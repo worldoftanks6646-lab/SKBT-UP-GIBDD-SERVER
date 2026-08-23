@@ -56,6 +56,8 @@ pytest -q
 - `POST /api/v1/location-sessions/{session_id}/points` — новая live-точка;
 - `GET /api/v1/location-sessions/{session_id}` — точки геолокации;
 - `PATCH /api/v1/location-sessions/{session_id}/finish` — завершение live-сессии;
+- `GET /api/v1/notifications` — уведомления сотрудника;
+- `PATCH /api/v1/notifications/{notification_id}/read` — отметка уведомления прочитанным;
 - `WS /api/v1/ws/chats/{chat_id}?device_id={device_id}` — события чата в реальном времени.
 - `POST /api/v1/witnesses/{witness_id}/bans` — выдать бан;
 - `GET /api/v1/witnesses/{witness_id}/bans` — история банов;

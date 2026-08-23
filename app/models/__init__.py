@@ -9,6 +9,7 @@ from app.models.location import (
     LocationSessionType,
 )
 from app.models.message import Message, MessageSenderType, MessageType
+from app.models.notification import Notification, NotificationType
 from app.models.role import Role, RoleCode
 from app.models.role_assignment import RoleAssignment
 from app.models.witness import Witness
@@ -28,6 +29,8 @@ __all__ = [
     "MessageSenderType",
     "MessageType",
     "MediaType",
+    "Notification",
+    "NotificationType",
     "Role",
     "RoleAssignment",
     "RoleCode",

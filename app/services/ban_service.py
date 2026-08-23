@@ -12,10 +12,12 @@ from app.models import (
     Role,
     RoleAssignment,
     RoleCode,
+    NotificationType,
     Witness,
     WitnessBan,
 )
 from app.schemas.ban import BanCreateRequest, BanListResponse, BanResponse, BanRevokeRequest
+from app.services.notification_service import NotificationService
 
 
 class WitnessNotFoundError(ValueError):
@@ -91,6 +93,18 @@ class BanService:
         witness.ban_level = payload.ban_level
         witness.banned_at = datetime.now(timezone.utc)
         witness.ban_reason = payload.reason
+        await db.flush()
+        await NotificationService.notify_chiefs(
+            db,
+            NotificationType.BAN_ISSUED,
+            "witness_ban",
+            ban.id,
+            {
+                "witness_id": str(witness.id),
+                "ban_level": payload.ban_level,
+                "reason": payload.reason,
+            },
+        )
         await db.commit()
         await db.refresh(ban)
         return BanResponse.model_validate(ban)
@@ -135,6 +149,13 @@ class BanService:
         witness.ban_level = 0
         witness.banned_at = None
         witness.ban_reason = None
+        await NotificationService.notify_chiefs(
+            db,
+            NotificationType.BAN_REVOKED,
+            "witness_ban",
+            ban.id,
+            {"witness_id": str(witness.id)},
+        )
         await db.commit()
         await db.refresh(ban)
         return BanResponse.model_validate(ban)

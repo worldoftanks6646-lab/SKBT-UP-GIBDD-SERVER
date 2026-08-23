@@ -4,8 +4,16 @@ from uuid import UUID
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Device, Employee, Role, RoleAssignment, RoleCode
+from app.models import (
+    Device,
+    Employee,
+    NotificationType,
+    Role,
+    RoleAssignment,
+    RoleCode,
+)
 from app.schemas.role import RoleAssignmentResponse, RoleHistoryResponse
+from app.services.notification_service import NotificationService
 
 
 class EmployeeNotFoundError(ValueError):
@@ -122,6 +130,14 @@ class RoleService:
             assigned_by_employee_id=requester.id,
         )
         db.add(assignment)
+        await db.flush()
+        await NotificationService.notify_chiefs(
+            db,
+            NotificationType.ROLE_CHANGED,
+            "role_assignment",
+            assignment.id,
+            {"employee_id": str(target.id), "role": role.code.value},
+        )
         await db.commit()
         await db.refresh(assignment)
         return RoleService._response(assignment, role.code)
@@ -145,6 +161,13 @@ class RoleService:
             if await RoleService._chief_count(db) <= 1:
                 raise RoleConflictError("The last chief role cannot be revoked")
         assignment.revoked_at = datetime.now(timezone.utc)
+        await NotificationService.notify_chiefs(
+            db,
+            NotificationType.ROLE_REVOKED,
+            "role_assignment",
+            assignment.id,
+            {"employee_id": str(employee_id), "role": role.code.value},
+        )
         await db.commit()
         await db.refresh(assignment)
         return RoleService._response(assignment, role.code)

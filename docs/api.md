@@ -66,6 +66,8 @@ POST   /api/v1/chats/{chat_id}/locations/live
 POST   /api/v1/location-sessions/{session_id}/points
 GET    /api/v1/location-sessions/{session_id}
 PATCH  /api/v1/location-sessions/{session_id}/finish
+GET    /api/v1/notifications
+PATCH  /api/v1/notifications/{notification_id}/read
 WS     /api/v1/ws/chats/{chat_id}?device_id={device_id}
 
 POST   /api/v1/witnesses/{witness_id}/bans
@@ -420,6 +422,59 @@ PATCH /api/v1/location-sessions/{session_id}/finish
 
 Через WebSocket участники чата получают событие `message.created` при запуске и `location.point` для каждой новой точки.
 
+## Уведомления сотрудников
+
+Backend автоматически создаёт уведомления всем сотрудникам с активной ролью `chief` при следующих событиях:
+
+- `ban_issued` — очевидцу выдан бан;
+- `ban_revoked` — бан снят;
+- `role_changed` — сотруднику назначена или изменена роль;
+- `role_revoked` — роль снята.
+
+Получение уведомлений текущего сотрудника:
+
+```text
+GET /api/v1/notifications?requester_device_id={device_id}&unread_only=false&limit=50
+```
+
+Параметры `before` и `limit` используются для пагинации. `unread_only=true` возвращает только непрочитанные записи.
+
+```json
+{
+  "items": [
+    {
+      "id": "UUID",
+      "type": "ban_issued",
+      "related_entity_type": "witness_ban",
+      "related_entity_id": "UUID",
+      "payload": {
+        "witness_id": "UUID",
+        "ban_level": 1,
+        "reason": "Нарушение правил"
+      },
+      "is_read": false,
+      "created_at": "2026-08-23T15:30:00Z",
+      "read_at": null
+    }
+  ],
+  "next_before": null
+}
+```
+
+Отметка прочитанным:
+
+```text
+PATCH /api/v1/notifications/{notification_id}/read
+```
+
+```json
+{
+  "requester_device_id": "UUID"
+}
+```
+
+Сотрудник может видеть и отмечать только собственные уведомления.
+
 ## POST /api/v1/witnesses/{witness_id}/bans
 
 Выдаёт бан очевидцу.
@@ -585,7 +640,7 @@ val retrofit = Retrofit.Builder()
 - назначение роли напрямую по `device_id` QR-кода;
 - ответы сотрудников только предопределёнными шаблонами;
 - автоматический срок и автоматическое завершение бана;
-- push-уведомления и чат уведомлений начальника;
+- внешние push-уведомления Android (уведомления внутри API уже реализованы);
 - Excel-отчёты;
 
 Frontend не должен вызывать отсутствующие маршруты до их реализации.
