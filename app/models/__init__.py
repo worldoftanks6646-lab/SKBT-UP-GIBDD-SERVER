@@ -2,6 +2,12 @@ from app.models.attachment import Attachment, MediaType
 from app.models.chat import Chat
 from app.models.device import Device, DeviceType
 from app.models.employee import Employee
+from app.models.location import (
+    LocationPoint,
+    LocationSession,
+    LocationSessionStatus,
+    LocationSessionType,
+)
 from app.models.message import Message, MessageSenderType, MessageType
 from app.models.role import Role, RoleCode
 from app.models.role_assignment import RoleAssignment
@@ -14,6 +20,10 @@ __all__ = [
     "Device",
     "DeviceType",
     "Employee",
+    "LocationPoint",
+    "LocationSession",
+    "LocationSessionStatus",
+    "LocationSessionType",
     "Message",
     "MessageSenderType",
     "MessageType",

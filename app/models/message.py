@@ -66,3 +66,6 @@ class Message(Base):
     attachments = relationship(
         "Attachment", back_populates="message", cascade="all, delete-orphan"
     )
+    location_session = relationship(
+        "LocationSession", back_populates="message", uselist=False, cascade="all, delete-orphan"
+    )

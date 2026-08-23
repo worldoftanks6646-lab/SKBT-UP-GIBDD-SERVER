@@ -14,6 +14,7 @@ from app.models import (
     Message,
     MessageSenderType,
     MessageType,
+    LocationSession,
     RoleAssignment,
     Witness,
 )
@@ -139,9 +140,20 @@ class MessageService:
             )
         ).all() if messages else []
         attachment_ids = dict(attachment_rows)
+        location_rows = (
+            await db.execute(
+                select(LocationSession.message_id, LocationSession.id).where(
+                    LocationSession.message_id.in_([message.id for message in messages])
+                )
+            )
+        ).all() if messages else []
+        location_ids = dict(location_rows)
         items = [
             MessageResponse.model_validate(message).model_copy(
-                update={"attachment_id": attachment_ids.get(message.id)}
+                update={
+                    "attachment_id": attachment_ids.get(message.id),
+                    "location_session_id": location_ids.get(message.id),
+                }
             )
             for message in messages
         ]

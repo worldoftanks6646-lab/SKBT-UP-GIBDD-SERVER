@@ -51,6 +51,11 @@ pytest -q
 - `PATCH /api/v1/chats/{chat_id}/messages/{message_id}/read` — отметка о прочтении;
 - `POST /api/v1/chats/{chat_id}/media` — отправка фото, GIF или видео;
 - `GET /api/v1/media/{attachment_id}` — получение медиафайла;
+- `POST /api/v1/chats/{chat_id}/locations/static` — статическая геопозиция;
+- `POST /api/v1/chats/{chat_id}/locations/live` — запуск live-геопозиции;
+- `POST /api/v1/location-sessions/{session_id}/points` — новая live-точка;
+- `GET /api/v1/location-sessions/{session_id}` — точки геолокации;
+- `PATCH /api/v1/location-sessions/{session_id}/finish` — завершение live-сессии;
 - `WS /api/v1/ws/chats/{chat_id}?device_id={device_id}` — события чата в реальном времени.
 - `POST /api/v1/witnesses/{witness_id}/bans` — выдать бан;
 - `GET /api/v1/witnesses/{witness_id}/bans` — история банов;

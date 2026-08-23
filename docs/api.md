@@ -61,6 +61,11 @@ GET    /api/v1/chats/{chat_id}/messages
 PATCH  /api/v1/chats/{chat_id}/messages/{message_id}/read
 POST   /api/v1/chats/{chat_id}/media
 GET    /api/v1/media/{attachment_id}
+POST   /api/v1/chats/{chat_id}/locations/static
+POST   /api/v1/chats/{chat_id}/locations/live
+POST   /api/v1/location-sessions/{session_id}/points
+GET    /api/v1/location-sessions/{session_id}
+PATCH  /api/v1/location-sessions/{session_id}/finish
 WS     /api/v1/ws/chats/{chat_id}?device_id={device_id}
 
 POST   /api/v1/witnesses/{witness_id}/bans
@@ -342,6 +347,79 @@ Backend проверяет доступ устройства к чату. Пос
 
 При обрыве сети frontend должен переподключиться и вызвать HTTP-историю, чтобы догрузить пропущенные сообщения.
 
+## Статическая геопозиция
+
+```text
+POST /api/v1/chats/{chat_id}/locations/static
+```
+
+```json
+{
+  "sender_device_id": "UUID",
+  "latitude": 55.7558,
+  "longitude": 37.6176,
+  "accuracy": 5.0,
+  "captured_at": "2026-08-23T15:00:00+03:00"
+}
+```
+
+`latitude` должна быть от −90 до 90, `longitude` — от −180 до 180, точность не может быть отрицательной. `captured_at` необязателен; если он передан, часовой пояс обязателен.
+
+Ответ `201` содержит сообщение типа `geolocation`, завершённую сессию типа `static` и одну точку. В истории сообщений идентификатор находится в `location_session_id`.
+
+## Live-геопозиция
+
+Запуск сессии:
+
+```text
+POST /api/v1/chats/{chat_id}/locations/live
+```
+
+```json
+{
+  "sender_device_id": "UUID",
+  "duration_seconds": 900
+}
+```
+
+Продолжительность — от 60 до 3600 секунд. Backend возвращает `session.id`. Пока сессия активна, приложение отправляет точку примерно раз в секунду:
+
+```text
+POST /api/v1/location-sessions/{session_id}/points
+```
+
+```json
+{
+  "sender_device_id": "UUID",
+  "latitude": 55.7558,
+  "longitude": 37.6176,
+  "accuracy": 5.0,
+  "captured_at": "2026-08-23T15:00:01+03:00"
+}
+```
+
+Точки получают последовательные номера. Добавлять точки и завершать сессию может только устройство, которое её запустило. Забаненный очевидец получает `403`. После достижения `expires_at` новая точка возвращает `409`, а статус меняется на `expired`.
+
+Получение сессии и всех точек:
+
+```text
+GET /api/v1/location-sessions/{session_id}?requester_device_id={device_id}
+```
+
+Завершение раньше установленного срока:
+
+```text
+PATCH /api/v1/location-sessions/{session_id}/finish
+```
+
+```json
+{
+  "sender_device_id": "UUID"
+}
+```
+
+Через WebSocket участники чата получают событие `message.created` при запуске и `location.point` для каждой новой точки.
+
 ## POST /api/v1/witnesses/{witness_id}/bans
 
 Выдаёт бан очевидцу.
@@ -507,7 +585,6 @@ val retrofit = Retrofit.Builder()
 - назначение роли напрямую по `device_id` QR-кода;
 - ответы сотрудников только предопределёнными шаблонами;
 - автоматический срок и автоматическое завершение бана;
-- статическая и live-геопозиция;
 - push-уведомления и чат уведомлений начальника;
 - Excel-отчёты;
 

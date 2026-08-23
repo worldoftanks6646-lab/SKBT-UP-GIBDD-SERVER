@@ -29,6 +29,7 @@ class MessageResponse(BaseModel):
     read_at: datetime | None
     deleted: bool
     attachment_id: UUID | None = None
+    location_session_id: UUID | None = None
 
 
 class MessageListResponse(BaseModel):
