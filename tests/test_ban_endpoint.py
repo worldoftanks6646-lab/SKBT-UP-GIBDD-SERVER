@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from uuid import UUID, uuid4
 
 from fastapi.testclient import TestClient
@@ -36,7 +36,7 @@ def test_chief_can_issue_ban(monkeypatch) -> None:
     async def issue(_db, received_witness_id, payload):
         assert received_witness_id == witness_id
         assert payload.issued_by_device_id == device_id
-        assert payload.ban_level == 2
+        assert payload.reason == "Repeated violation"
         return ban_response(witness_id, employee_id)
 
     monkeypatch.setattr(BanService, "issue", issue)
@@ -46,7 +46,6 @@ def test_chief_can_issue_ban(monkeypatch) -> None:
             f"/api/v1/witnesses/{witness_id}/bans",
             json={
                 "issued_by_device_id": str(device_id),
-                "ban_level": 2,
                 "reason": "Repeated violation",
             },
         )
@@ -67,7 +66,6 @@ def test_non_chief_cannot_issue_ban(monkeypatch) -> None:
             f"/api/v1/witnesses/{uuid4()}/bans",
             json={
                 "issued_by_device_id": str(uuid4()),
-                "ban_level": 1,
                 "reason": "Violation",
             },
         )
@@ -87,7 +85,6 @@ def test_second_active_ban_returns_conflict(monkeypatch) -> None:
             f"/api/v1/witnesses/{uuid4()}/bans",
             json={
                 "issued_by_device_id": str(uuid4()),
-                "ban_level": 1,
                 "reason": "Violation",
             },
         )
@@ -117,3 +114,18 @@ def test_chief_can_list_ban_history(monkeypatch) -> None:
 
     assert response.status_code == 200
     assert len(response.json()["items"]) == 1
+
+
+def test_ban_policy_uses_required_durations() -> None:
+    now = datetime.now(timezone.utc)
+
+    first_level, first_expiration = BanService._ban_policy(0, now)
+    second_level, second_expiration = BanService._ban_policy(1, now)
+    third_level, third_expiration = BanService._ban_policy(2, now)
+
+    assert first_level == 1
+    assert first_expiration == now + timedelta(days=1)
+    assert second_level == 2
+    assert second_expiration == now + timedelta(days=30)
+    assert third_level == 3
+    assert third_expiration is None

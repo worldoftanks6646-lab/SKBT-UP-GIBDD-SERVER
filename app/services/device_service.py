@@ -14,6 +14,7 @@ from app.models import (
     Witness,
 )
 from app.schemas.device import DeviceRegisterRequest, DeviceRegisterResponse
+from app.services.witness_access import witness_has_active_ban
 
 
 class DeviceTypeConflictError(ValueError):
@@ -35,6 +36,7 @@ class DeviceService:
             witness = await db.scalar(
                 select(Witness).where(Witness.device_id == device.id)
             )
+            await witness_has_active_ban(db, witness)
             chat = await db.scalar(select(Chat).where(Chat.witness_id == witness.id))
             response.witness_id = witness.id
             response.chat_id = chat.id

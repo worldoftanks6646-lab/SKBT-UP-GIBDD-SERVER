@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
 from sqlalchemy import or_, select
@@ -37,6 +37,16 @@ class BanPermissionDeniedError(PermissionError):
 
 
 class BanService:
+    @staticmethod
+    def _ban_policy(
+        previous_ban_count: int, now: datetime
+    ) -> tuple[int, datetime | None]:
+        if previous_ban_count <= 0:
+            return 1, now + timedelta(days=1)
+        if previous_ban_count == 1:
+            return 2, now + timedelta(days=30)
+        return 3, None
+
     @staticmethod
     async def _require_ban_manager(db: AsyncSession, device_id: UUID) -> Employee:
         employee = await db.scalar(
@@ -79,19 +89,26 @@ class BanService:
         )
         if active_ban is not None:
             raise BanConflictError("Witness already has an active ban")
-        if payload.expires_at is not None and payload.expires_at <= datetime.now(timezone.utc):
-            raise BanConflictError("Ban expiration must be in the future")
+        previous_ban_count = (
+            await db.scalar(
+                select(func.count(WitnessBan.id)).where(
+                    WitnessBan.witness_id == witness.id
+                )
+            )
+        ) or 0
+        now = datetime.now(timezone.utc)
+        ban_level, expires_at = BanService._ban_policy(previous_ban_count, now)
 
         ban = WitnessBan(
             witness_id=witness.id,
-            ban_level=payload.ban_level,
+            ban_level=ban_level,
             reason=payload.reason,
             issued_by_employee_id=manager.id,
-            expires_at=payload.expires_at,
+            expires_at=expires_at,
         )
         db.add(ban)
-        witness.ban_level = payload.ban_level
-        witness.banned_at = datetime.now(timezone.utc)
+        witness.ban_level = ban_level
+        witness.banned_at = now
         witness.ban_reason = payload.reason
         await db.flush()
         await NotificationService.notify_chiefs(
@@ -101,7 +118,7 @@ class BanService:
             ban.id,
             {
                 "witness_id": str(witness.id),
-                "ban_level": payload.ban_level,
+                "ban_level": ban_level,
                 "reason": payload.reason,
             },
         )

@@ -1,23 +1,12 @@
 from datetime import datetime
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class BanCreateRequest(BaseModel):
     issued_by_device_id: UUID
-    ban_level: int = Field(ge=1, le=3)
     reason: str = Field(min_length=1, max_length=1000)
-    expires_at: datetime | None = None
-
-    @field_validator("expires_at")
-    @classmethod
-    def expiration_must_include_timezone(
-        cls, value: datetime | None
-    ) -> datetime | None:
-        if value is not None and value.tzinfo is None:
-            raise ValueError("expires_at must include timezone")
-        return value
 
 
 class BanRevokeRequest(BaseModel):
