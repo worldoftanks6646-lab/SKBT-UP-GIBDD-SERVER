@@ -6,7 +6,12 @@ from fastapi.testclient import TestClient
 from app.core.database import get_db
 from app.main import app
 from app.models.message import MessageSenderType, MessageType
-from app.schemas.message import MessageListResponse, MessageResponse
+from app.schemas.message import (
+    MessageListResponse,
+    MessageResponse,
+    MessageTemplateListResponse,
+    MessageTemplateResponse,
+)
 from app.services.message_service import ChatAccessDeniedError, MessageService
 
 
@@ -143,3 +148,77 @@ def test_mark_message_as_read(monkeypatch) -> None:
 
     assert response.status_code == 200
     assert response.json()["read_at"] is not None
+
+
+def test_employee_arbitrary_text_is_rejected(monkeypatch) -> None:
+    async def create_message(_db, _chat_id, _sender_id, _text):
+        raise ChatAccessDeniedError("Employee must send a predefined message template")
+
+    monkeypatch.setattr(MessageService, "create_text_message", create_message)
+    app.dependency_overrides[get_db] = override_db
+    client = TestClient(app)
+    try:
+        response = client.post(
+            f"/api/v1/chats/{uuid4()}/messages",
+            json={"sender_device_id": str(uuid4()), "text": "Произвольный ответ"},
+        )
+    finally:
+        client.close()
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 403
+
+
+def test_list_employee_templates(monkeypatch) -> None:
+    device_id = uuid4()
+    template_id = uuid4()
+
+    async def list_templates(_db, received_device_id):
+        assert received_device_id == device_id
+        return MessageTemplateListResponse(
+            items=[MessageTemplateResponse(id=template_id, code="accepted", text="Принято")]
+        )
+
+    monkeypatch.setattr(MessageService, "list_templates", list_templates)
+    app.dependency_overrides[get_db] = override_db
+    client = TestClient(app)
+    try:
+        response = client.get(
+            "/api/v1/message-templates",
+            params={"requester_device_id": str(device_id)},
+        )
+    finally:
+        client.close()
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json()["items"][0]["id"] == str(template_id)
+
+
+def test_employee_sends_template(monkeypatch) -> None:
+    chat_id = uuid4()
+    sender_id = uuid4()
+    template_id = uuid4()
+    item = message_response(chat_id, sender_id)
+    item.sender_type = MessageSenderType.EMPLOYEE
+
+    async def create_template(_db, received_chat_id, received_sender_id, received_template_id):
+        assert received_chat_id == chat_id
+        assert received_sender_id == sender_id
+        assert received_template_id == template_id
+        return item
+
+    monkeypatch.setattr(MessageService, "create_template_message", create_template)
+    app.dependency_overrides[get_db] = override_db
+    client = TestClient(app)
+    try:
+        response = client.post(
+            f"/api/v1/chats/{chat_id}/messages/template",
+            json={"sender_device_id": str(sender_id), "template_id": str(template_id)},
+        )
+    finally:
+        client.close()
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 201
+    assert response.json()["sender_type"] == "employee"

@@ -57,6 +57,8 @@ POST   /api/v1/devices/register
 
 GET    /api/v1/chats
 POST   /api/v1/chats/{chat_id}/messages
+GET    /api/v1/message-templates
+POST   /api/v1/chats/{chat_id}/messages/template
 GET    /api/v1/chats/{chat_id}/messages
 PATCH  /api/v1/chats/{chat_id}/messages/{message_id}/read
 POST   /api/v1/chats/{chat_id}/media
@@ -158,7 +160,7 @@ employee — Сотрудник
 
 ## POST /api/v1/chats/{chat_id}/messages
 
-Создаёт текстовое сообщение.
+Создаёт текстовое сообщение очевидца. Сотрудник не может отправлять через этот маршрут произвольный текст и получает `403`.
 
 ```json
 {
@@ -190,6 +192,41 @@ employee — Сотрудник
 - `403` — устройство не имеет доступа к этому чату;
 - `404` — чат или устройство не найдено;
 - `422` — неверный UUID или пустой текст.
+
+## Шаблоны ответов сотрудников
+
+Сотрудник с активной ролью получает утверждённые варианты ответа:
+
+```text
+GET /api/v1/message-templates?requester_device_id={device_id}
+```
+
+```json
+{
+  "items": [
+    {
+      "id": "10000000-0000-0000-0000-000000000001",
+      "code": "accepted",
+      "text": "Ваше сообщение принято."
+    }
+  ]
+}
+```
+
+Отправка выбранного шаблона:
+
+```text
+POST /api/v1/chats/{chat_id}/messages/template
+```
+
+```json
+{
+  "sender_device_id": "UUID сотрудника",
+  "template_id": "10000000-0000-0000-0000-000000000001"
+}
+```
+
+Backend самостоятельно берёт актуальный текст шаблона. Очевидец не может использовать этот маршрут. Неактивный или неизвестный шаблон возвращает `404`.
 
 ## GET /api/v1/chats
 
@@ -638,7 +675,6 @@ val retrofit = Retrofit.Builder()
 
 - access-токены и полноценная авторизация;
 - назначение роли напрямую по `device_id` QR-кода;
-- ответы сотрудников только предопределёнными шаблонами;
 - автоматический срок и автоматическое завершение бана;
 - внешние push-уведомления Android (уведомления внутри API уже реализованы);
 - Excel-отчёты;

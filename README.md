@@ -47,6 +47,8 @@ pytest -q
 - `POST /api/v1/devices/register` — регистрация устройства;
 - `GET /api/v1/chats` — список чатов для сотрудника;
 - `POST /api/v1/chats/{chat_id}/messages` — отправка сообщения;
+- `GET /api/v1/message-templates` — шаблоны ответов сотрудников;
+- `POST /api/v1/chats/{chat_id}/messages/template` — ответ сотрудника по шаблону;
 - `GET /api/v1/chats/{chat_id}/messages` — история сообщений;
 - `PATCH /api/v1/chats/{chat_id}/messages/{message_id}/read` — отметка о прочтении;
 - `POST /api/v1/chats/{chat_id}/media` — отправка фото, GIF или видео;

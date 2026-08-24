@@ -14,11 +14,16 @@ from app.models import (
     Message,
     MessageSenderType,
     MessageType,
+    MessageTemplate,
     LocationSession,
     RoleAssignment,
     Witness,
 )
-from app.schemas.message import MessageListResponse, MessageResponse
+from app.schemas.message import (
+    MessageListResponse,
+    MessageResponse,
+    MessageTemplateListResponse,
+)
 from app.services.witness_access import witness_has_active_ban
 
 
@@ -35,6 +40,10 @@ class DeviceNotFoundError(ValueError):
 
 
 class ChatAccessDeniedError(PermissionError):
+    pass
+
+
+class MessageTemplateNotFoundError(ValueError):
     pass
 
 
@@ -90,6 +99,10 @@ class MessageService:
     ) -> MessageResponse:
         chat = await MessageService._get_chat(db, chat_id)
         sender = await MessageService._authorize_device(db, chat, sender_device_id)
+        if sender.type == DeviceType.EMPLOYEE:
+            raise ChatAccessDeniedError(
+                "Employee must send a predefined message template"
+            )
         sender_type = (
             MessageSenderType.WITNESS
             if sender.type == DeviceType.WITNESS
@@ -101,6 +114,61 @@ class MessageService:
             sender_type=sender_type,
             message_type=MessageType.TEXT,
             text=text,
+        )
+        db.add(message)
+        chat.last_message_at = func.now()
+        await db.commit()
+        await db.refresh(message)
+        return MessageResponse.model_validate(message)
+
+    @staticmethod
+    async def list_templates(
+        db: AsyncSession, requester_device_id: UUID
+    ) -> MessageTemplateListResponse:
+        employee_id = await db.scalar(
+            select(Employee.id).where(Employee.device_id == requester_device_id)
+        )
+        if employee_id is None:
+            raise DeviceNotFoundError("Employee device not found")
+        active_role = await db.scalar(
+            select(RoleAssignment.id).where(
+                RoleAssignment.employee_id == employee_id,
+                RoleAssignment.revoked_at.is_(None),
+            )
+        )
+        if active_role is None:
+            raise ChatAccessDeniedError("Employee has no assigned role")
+        templates = list(
+            (
+                await db.scalars(
+                    select(MessageTemplate)
+                    .where(MessageTemplate.is_active.is_(True))
+                    .order_by(MessageTemplate.code)
+                )
+            ).all()
+        )
+        return MessageTemplateListResponse(items=templates)
+
+    @staticmethod
+    async def create_template_message(
+        db: AsyncSession,
+        chat_id: UUID,
+        sender_device_id: UUID,
+        template_id: UUID,
+    ) -> MessageResponse:
+        chat = await MessageService._get_chat(db, chat_id)
+        sender = await MessageService._authorize_device(db, chat, sender_device_id)
+        if sender.type != DeviceType.EMPLOYEE:
+            raise ChatAccessDeniedError("Only employee can send a message template")
+        template = await db.get(MessageTemplate, template_id)
+        if template is None or not template.is_active:
+            raise MessageTemplateNotFoundError("Message template not found")
+        message = Message(
+            chat_id=chat.id,
+            sender_device_id=sender.id,
+            sender_type=MessageSenderType.EMPLOYEE,
+            message_type=MessageType.TEXT,
+            text=template.text,
         )
         db.add(message)
         chat.last_message_at = func.now()

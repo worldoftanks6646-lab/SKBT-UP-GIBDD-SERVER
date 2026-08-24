@@ -16,6 +16,23 @@ class TextMessageCreate(BaseModel):
         return value.strip() if isinstance(value, str) else value
 
 
+class TemplateMessageCreate(BaseModel):
+    sender_device_id: UUID
+    template_id: UUID
+
+
+class MessageTemplateResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: UUID
+    code: str
+    text: str
+
+
+class MessageTemplateListResponse(BaseModel):
+    items: list[MessageTemplateResponse]
+
+
 class MessageResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

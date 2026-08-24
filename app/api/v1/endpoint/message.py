@@ -5,18 +5,26 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
-from app.schemas.message import MessageListResponse, MessageResponse, TextMessageCreate
+from app.schemas.message import (
+    MessageListResponse,
+    MessageResponse,
+    MessageTemplateListResponse,
+    TemplateMessageCreate,
+    TextMessageCreate,
+)
 from app.services.message_service import (
     ChatAccessDeniedError,
     ChatNotFoundError,
     DeviceNotFoundError,
     MessageNotFoundError,
+    MessageTemplateNotFoundError,
     MessageService,
 )
 from app.services.websocket_manager import chat_connections
 
 
 router = APIRouter(prefix="/chats", tags=["messages"])
+template_router = APIRouter(prefix="/message-templates", tags=["message templates"])
 
 
 def message_error_to_http(error: Exception) -> HTTPException:
@@ -45,6 +53,45 @@ async def create_text_message(
         )
         return message
     except (ChatNotFoundError, DeviceNotFoundError, ChatAccessDeniedError) as error:
+        raise message_error_to_http(error) from error
+
+
+@router.post(
+    "/{chat_id}/messages/template",
+    response_model=MessageResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_template_message(
+    chat_id: UUID,
+    request: TemplateMessageCreate,
+    db: AsyncSession = Depends(get_db),
+) -> MessageResponse:
+    try:
+        message = await MessageService.create_template_message(
+            db, chat_id, request.sender_device_id, request.template_id
+        )
+        await chat_connections.broadcast(
+            chat_id,
+            {"event": "message.created", "data": message.model_dump(mode="json")},
+        )
+        return message
+    except (
+        ChatNotFoundError,
+        DeviceNotFoundError,
+        ChatAccessDeniedError,
+        MessageTemplateNotFoundError,
+    ) as error:
+        raise message_error_to_http(error) from error
+
+
+@template_router.get("", response_model=MessageTemplateListResponse)
+async def list_message_templates(
+    requester_device_id: UUID,
+    db: AsyncSession = Depends(get_db),
+) -> MessageTemplateListResponse:
+    try:
+        return await MessageService.list_templates(db, requester_device_id)
+    except (DeviceNotFoundError, ChatAccessDeniedError) as error:
         raise message_error_to_http(error) from error
 
 
