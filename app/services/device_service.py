@@ -14,6 +14,7 @@ from app.models import (
     Witness,
 )
 from app.schemas.device import DeviceRegisterRequest, DeviceRegisterResponse
+from app.core.security import create_device_token
 from app.services.witness_access import witness_has_active_ban
 
 
@@ -30,6 +31,7 @@ class DeviceService:
             device_id=device.id,
             type=device.type,
             is_new=is_new,
+            access_token=create_device_token(device.id),
         )
 
         if device.type == DeviceType.WITNESS:

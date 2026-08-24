@@ -45,9 +45,21 @@ API использует HTTPS, а WebSocket подключается через
 - UUID передаются строками;
 - даты передаются в ISO 8601 с часовым поясом;
 - fingerprint создаётся на Android и передаётся как SHA-256 из 64 hex-символов;
-- при регистрации frontend сохраняет полученные `device_id`, `witness_id`, `employee_id` и `chat_id`;
-- access-токены в текущей версии ещё не реализованы, поэтому идентификатор устройства передаётся в запросе;
+- при регистрации frontend сохраняет `device_id`, связанные ID и `access_token` в защищённом хранилище;
+- все маршруты, кроме health check и регистрации, требуют заголовок `Authorization: Bearer <access_token>`;
+- переданный в запросе `device_id` обязан совпадать с устройством из токена;
+- `401` означает отсутствующий/просроченный токен, `403` — недостаточно прав или попытку подмены устройства;
 - `400`, `403`, `404`, `409` содержат поле `detail`, а ошибки валидации возвращают `422`.
+
+### Авторизация
+
+`POST /api/v1/devices/register` возвращает токен сроком на 30 дней. Повторная регистрация того же fingerprint выдаёт новый токен. Для Retrofit добавьте interceptor:
+
+```kotlin
+request.newBuilder()
+    .header("Authorization", "Bearer $accessToken")
+    .build()
+```
 
 ## Реализованные маршруты
 
@@ -70,13 +82,14 @@ GET    /api/v1/location-sessions/{session_id}
 PATCH  /api/v1/location-sessions/{session_id}/finish
 GET    /api/v1/notifications
 PATCH  /api/v1/notifications/{notification_id}/read
-WS     /api/v1/ws/chats/{chat_id}?device_id={device_id}
+WS     /api/v1/ws/chats/{chat_id}?token={access_token}
 
 POST   /api/v1/witnesses/{witness_id}/bans
 GET    /api/v1/witnesses/{witness_id}/bans
 PATCH  /api/v1/witnesses/{witness_id}/bans/{ban_id}/revoke
 
 PUT    /api/v1/employees/{employee_id}/role
+PUT    /api/v1/devices/{device_id}/role
 DELETE /api/v1/employees/{employee_id}/role
 GET    /api/v1/employees/{employee_id}/roles/history
 ```
@@ -130,7 +143,9 @@ employee — Сотрудник
   "employee_id": null,
   "role": null,
   "chat_id": "65cb767f-d939-466e-beaf-8334c97f0612",
-  "ban_level": 0
+  "ban_level": 0,
+  "access_token": "eyJhbGciOiJIUzI1NiIs...",
+  "token_type": "bearer"
 }
 ```
 
@@ -145,7 +160,9 @@ employee — Сотрудник
   "employee_id": "8fc9c6b2-33aa-4d60-bb94-a24b648f2a3e",
   "role": "chief",
   "chat_id": null,
-  "ban_level": null
+  "ban_level": null,
+  "access_token": "eyJhbGciOiJIUzI1NiIs...",
+  "token_type": "bearer"
 }
 ```
 
@@ -362,7 +379,7 @@ GET /api/v1/media/{attachment_id}?requester_device_id={device_id}
 Подключение к событиям конкретного чата:
 
 ```text
-wss://силенок.рф:4402/api/v1/ws/chats/{chat_id}?device_id={device_id}
+wss://силенок.рф:4402/api/v1/ws/chats/{chat_id}?token={access_token}
 ```
 
 Backend проверяет доступ устройства к чату. После создания сообщения отправляется событие:
@@ -585,7 +602,24 @@ chief
 
 Администратор назначает `inspector` и `administrator`. Начальник может назначать все роли. Последнюю активную роль `chief` изменить нельзя.
 
-Важно: текущий маршрут принимает `employee_id`, который возвращается при регистрации. Назначение непосредственно по `device_id` из QR-кода ещё не реализовано.
+## PUT /api/v1/devices/{device_id}/role — выдача роли по QR
+
+Приложение сотрудника формирует QR-код, содержащий **только строку `device_id`**. ZXing или ML Kit используются на Android; сервер не генерирует изображение QR. Администратор или Начальник сканирует код и отправляет:
+
+```http
+PUT /api/v1/devices/{отсканированный_device_id}/role
+Authorization: Bearer <токен администратора или начальника>
+Content-Type: application/json
+```
+
+```json
+{
+  "requester_device_id": "device_id администратора или начальника",
+  "role": "inspector"
+}
+```
+
+Если устройство не зарегистрировано как `employee`, сервер возвращает `404`. Администратор может назначать `inspector` и `administrator`; роль `chief` может назначать только другой Начальник.
 
 ## DELETE /api/v1/employees/{employee_id}/role
 
@@ -677,8 +711,6 @@ val retrofit = Retrofit.Builder()
 
 ## Ещё не реализовано
 
-- access-токены и полноценная авторизация;
-- назначение роли напрямую по `device_id` QR-кода;
 - внешние push-уведомления Android (уведомления внутри API уже реализованы);
 - Excel-отчёты;
 

@@ -31,3 +31,5 @@ class DeviceRegisterResponse(BaseModel):
     role: RoleCode | None = None
     chat_id: UUID | None = None
     ban_level: int | None = None
+    access_token: str
+    token_type: str = "bearer"

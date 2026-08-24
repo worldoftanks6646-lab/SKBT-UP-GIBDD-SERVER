@@ -5,6 +5,7 @@ from fastapi.responses import FileResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.security import get_current_device_id, verify_device_id
 from app.schemas.media import MediaMessageResponse
 from app.services.media_service import (
     AttachmentNotFoundError,
@@ -25,7 +26,9 @@ async def upload_media(
     sender_device_id: UUID = Form(...),
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
+    authenticated_device_id: UUID | None = Depends(get_current_device_id),
 ) -> MediaMessageResponse:
+    verify_device_id(authenticated_device_id, sender_device_id)
     try:
         result = await MediaService.upload(db, chat_id, sender_device_id, file)
         await chat_connections.broadcast(
@@ -45,7 +48,9 @@ async def download_media(
     attachment_id: UUID,
     requester_device_id: UUID,
     db: AsyncSession = Depends(get_db),
+    authenticated_device_id: UUID | None = Depends(get_current_device_id),
 ) -> FileResponse:
+    verify_device_id(authenticated_device_id, requester_device_id)
     try:
         attachment, path = await MediaService.get_for_download(db, attachment_id, requester_device_id)
         return FileResponse(path, media_type=attachment.mime_type, filename=attachment.original_name)

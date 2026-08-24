@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.security import get_current_device_id, verify_device_id
 from app.schemas.role import RoleAssignmentResponse, RoleChangeRequest, RoleHistoryResponse
 from app.services.role_service import (
     EmployeeNotFoundError,
@@ -14,6 +15,7 @@ from app.services.role_service import (
 
 
 router = APIRouter(prefix="/employees", tags=["roles"])
+device_role_router = APIRouter(prefix="/devices", tags=["roles"])
 
 
 def role_error_to_http(error: Exception) -> HTTPException:
@@ -29,10 +31,36 @@ async def assign_role(
     employee_id: UUID,
     request: RoleChangeRequest,
     db: AsyncSession = Depends(get_db),
+    authenticated_device_id: UUID | None = Depends(get_current_device_id),
 ) -> RoleAssignmentResponse:
+    verify_device_id(authenticated_device_id, request.requester_device_id)
     try:
         return await RoleService.assign(
             db, employee_id, request.requester_device_id, request.role
+        )
+    except (
+        EmployeeNotFoundError,
+        RolePermissionDeniedError,
+        RoleConflictError,
+    ) as error:
+        raise role_error_to_http(error) from error
+
+
+@device_role_router.put(
+    "/{target_device_id}/role",
+    response_model=RoleAssignmentResponse,
+    summary="Assign a role using a device_id scanned from a QR code",
+)
+async def assign_role_by_qr(
+    target_device_id: UUID,
+    request: RoleChangeRequest,
+    db: AsyncSession = Depends(get_db),
+    authenticated_device_id: UUID | None = Depends(get_current_device_id),
+) -> RoleAssignmentResponse:
+    verify_device_id(authenticated_device_id, request.requester_device_id)
+    try:
+        return await RoleService.assign_by_device(
+            db, target_device_id, request.requester_device_id, request.role
         )
     except (
         EmployeeNotFoundError,
@@ -47,7 +75,9 @@ async def revoke_role(
     employee_id: UUID,
     requester_device_id: UUID,
     db: AsyncSession = Depends(get_db),
+    authenticated_device_id: UUID | None = Depends(get_current_device_id),
 ) -> RoleAssignmentResponse:
+    verify_device_id(authenticated_device_id, requester_device_id)
     try:
         return await RoleService.revoke(db, employee_id, requester_device_id)
     except (
@@ -63,7 +93,9 @@ async def role_history(
     employee_id: UUID,
     requester_device_id: UUID,
     db: AsyncSession = Depends(get_db),
+    authenticated_device_id: UUID | None = Depends(get_current_device_id),
 ) -> RoleHistoryResponse:
+    verify_device_id(authenticated_device_id, requester_device_id)
     try:
         return await RoleService.history(db, employee_id, requester_device_id)
     except (EmployeeNotFoundError, RolePermissionDeniedError) as error:

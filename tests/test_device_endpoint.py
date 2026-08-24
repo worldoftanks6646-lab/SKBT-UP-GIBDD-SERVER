@@ -31,6 +31,7 @@ def test_new_device_returns_201(monkeypatch) -> None:
             witness_id=uuid4(),
             chat_id=uuid4(),
             ban_level=0,
+            access_token="test-token",
         )
 
     monkeypatch.setattr(DeviceService, "register_device", register_device)
@@ -57,6 +58,7 @@ def test_existing_device_returns_200(monkeypatch) -> None:
             witness_id=uuid4(),
             chat_id=uuid4(),
             ban_level=0,
+            access_token="test-token",
         )
 
     monkeypatch.setattr(DeviceService, "register_device", register_device)

@@ -3,6 +3,7 @@ from uuid import UUID
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, status
 
 from app.core.database import AsyncSessionLocal
+from app.core.security import decode_device_token
 from app.services.message_service import (
     ChatAccessDeniedError,
     ChatNotFoundError,
@@ -17,8 +18,13 @@ router = APIRouter(prefix="/ws", tags=["websocket"])
 
 @router.websocket("/chats/{chat_id}")
 async def chat_websocket(
-    websocket: WebSocket, chat_id: UUID, device_id: UUID
+    websocket: WebSocket, chat_id: UUID, token: str
 ) -> None:
+    try:
+        device_id = decode_device_token(token)
+    except Exception:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+        return
     async with AsyncSessionLocal() as db:
         try:
             chat = await MessageService._get_chat(db, chat_id)

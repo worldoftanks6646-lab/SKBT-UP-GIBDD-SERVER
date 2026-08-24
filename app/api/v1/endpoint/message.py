@@ -5,6 +5,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.database import get_db
+from app.core.security import get_current_device_id, verify_device_id
 from app.schemas.message import (
     MessageListResponse,
     MessageResponse,
@@ -42,7 +43,9 @@ async def create_text_message(
     chat_id: UUID,
     request: TextMessageCreate,
     db: AsyncSession = Depends(get_db),
+    authenticated_device_id: UUID | None = Depends(get_current_device_id),
 ) -> MessageResponse:
+    verify_device_id(authenticated_device_id, request.sender_device_id)
     try:
         message = await MessageService.create_text_message(
             db, chat_id, request.sender_device_id, request.text
@@ -65,7 +68,9 @@ async def create_template_message(
     chat_id: UUID,
     request: TemplateMessageCreate,
     db: AsyncSession = Depends(get_db),
+    authenticated_device_id: UUID | None = Depends(get_current_device_id),
 ) -> MessageResponse:
+    verify_device_id(authenticated_device_id, request.sender_device_id)
     try:
         message = await MessageService.create_template_message(
             db, chat_id, request.sender_device_id, request.template_id
@@ -88,7 +93,9 @@ async def create_template_message(
 async def list_message_templates(
     requester_device_id: UUID,
     db: AsyncSession = Depends(get_db),
+    authenticated_device_id: UUID | None = Depends(get_current_device_id),
 ) -> MessageTemplateListResponse:
+    verify_device_id(authenticated_device_id, requester_device_id)
     try:
         return await MessageService.list_templates(db, requester_device_id)
     except (DeviceNotFoundError, ChatAccessDeniedError) as error:
@@ -102,7 +109,9 @@ async def list_messages(
     limit: int = Query(default=50, ge=1, le=100),
     before: datetime | None = None,
     db: AsyncSession = Depends(get_db),
+    authenticated_device_id: UUID | None = Depends(get_current_device_id),
 ) -> MessageListResponse:
+    verify_device_id(authenticated_device_id, requester_device_id)
     try:
         return await MessageService.list_messages(
             db, chat_id, requester_device_id, limit, before
@@ -119,7 +128,9 @@ async def mark_message_as_read(
     message_id: UUID,
     requester_device_id: UUID,
     db: AsyncSession = Depends(get_db),
+    authenticated_device_id: UUID | None = Depends(get_current_device_id),
 ) -> MessageResponse:
+    verify_device_id(authenticated_device_id, requester_device_id)
     try:
         return await MessageService.mark_as_read(
             db, chat_id, message_id, requester_device_id

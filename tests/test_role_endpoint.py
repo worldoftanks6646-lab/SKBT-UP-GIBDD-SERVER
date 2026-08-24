@@ -48,6 +48,30 @@ def test_manager_can_assign_role(monkeypatch) -> None:
     assert response.json()["role"] == "inspector"
 
 
+def test_manager_can_assign_role_from_qr_device_id(monkeypatch) -> None:
+    target_device_id = uuid4()
+    requester_id = uuid4()
+    employee_id = uuid4()
+
+    async def assign_by_device(_db, target_id, device_id, role):
+        assert target_id == target_device_id
+        assert device_id == requester_id
+        assert role == RoleCode.INSPECTOR
+        return assignment_response(employee_id)
+
+    monkeypatch.setattr(RoleService, "assign_by_device", assign_by_device)
+    app.dependency_overrides[get_db] = override_db
+    with TestClient(app) as client:
+        response = client.put(
+            f"/api/v1/devices/{target_device_id}/role",
+            json={"requester_device_id": str(requester_id), "role": "inspector"},
+        )
+    app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert response.json()["employee_id"] == str(employee_id)
+
+
 def test_non_manager_cannot_assign_role(monkeypatch) -> None:
     async def assign(_db, _target_id, _device_id, _role):
         raise RolePermissionDeniedError("Not allowed")

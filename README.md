@@ -60,11 +60,12 @@ pytest -q
 - `PATCH /api/v1/location-sessions/{session_id}/finish` — завершение live-сессии;
 - `GET /api/v1/notifications` — уведомления сотрудника;
 - `PATCH /api/v1/notifications/{notification_id}/read` — отметка уведомления прочитанным;
-- `WS /api/v1/ws/chats/{chat_id}?device_id={device_id}` — события чата в реальном времени.
+- `WS /api/v1/ws/chats/{chat_id}?token={access_token}` — защищённые события чата в реальном времени.
 - `POST /api/v1/witnesses/{witness_id}/bans` — выдать бан;
 - `GET /api/v1/witnesses/{witness_id}/bans` — история банов;
 - `PATCH /api/v1/witnesses/{witness_id}/bans/{ban_id}/revoke` — снять бан.
 - `PUT /api/v1/employees/{employee_id}/role` — назначить или изменить роль;
+- `PUT /api/v1/devices/{device_id}/role` — назначить роль по `device_id` из QR-кода;
 - `DELETE /api/v1/employees/{employee_id}/role` — снять роль;
 - `GET /api/v1/employees/{employee_id}/roles/history` — история ролей.
 

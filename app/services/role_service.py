@@ -30,6 +30,19 @@ class RoleConflictError(ValueError):
 
 class RoleService:
     @staticmethod
+    async def employee_id_for_device(db: AsyncSession, device_id: UUID) -> UUID:
+        employee_id = await db.scalar(
+            select(Employee.id)
+            .join(Device, Device.id == Employee.device_id)
+            .where(Device.id == device_id)
+        )
+        if employee_id is None:
+            raise EmployeeNotFoundError(
+                "Role cannot be assigned: employee device is not registered"
+            )
+        return employee_id
+
+    @staticmethod
     async def _chief_count(db: AsyncSession) -> int:
         return (
             await db.scalar(
@@ -141,6 +154,18 @@ class RoleService:
         await db.commit()
         await db.refresh(assignment)
         return RoleService._response(assignment, role.code)
+
+    @staticmethod
+    async def assign_by_device(
+        db: AsyncSession,
+        target_device_id: UUID,
+        requester_device_id: UUID,
+        role_code: RoleCode,
+    ) -> RoleAssignmentResponse:
+        employee_id = await RoleService.employee_id_for_device(db, target_device_id)
+        return await RoleService.assign(
+            db, employee_id, requester_device_id, role_code
+        )
 
     @staticmethod
     async def revoke(
