@@ -99,6 +99,7 @@ WS     /api/v1/ws/chats/{chat_id}?token={access_token}
 POST   /api/v1/witnesses/{witness_id}/bans
 GET    /api/v1/witnesses/{witness_id}/bans
 PATCH  /api/v1/witnesses/{witness_id}/bans/{ban_id}/revoke
+GET    /api/v1/witnesses/me/active-ban
 
 PUT    /api/v1/employees/{employee_id}/role
 PUT    /api/v1/devices/{target_device_id}/role
@@ -418,6 +419,23 @@ Backend проверяет доступ устройства к чату. Пос
 
 При обрыве сети frontend должен переподключиться и вызвать HTTP-историю, чтобы догрузить пропущенные сообщения.
 
+После выдачи блокировки участники чата получают событие:
+
+```json
+{
+  "event": "observer_banned",
+  "data": {
+    "id": "UUID",
+    "ban_level": 1,
+    "issued_at": "2026-08-25T10:00:00Z",
+    "expires_at": "2026-08-26T10:00:00Z",
+    "reason": "Причина блокировки"
+  }
+}
+```
+
+Для бессрочного бана `expires_at` равен `null`. После переподключения приложение должно дополнительно запросить текущий бан через REST.
+
 ## Статическая геопозиция
 
 ```text
@@ -584,6 +602,38 @@ GET /api/v1/witnesses/{witness_id}/bans?requester_device_id={device_id}
   "items": []
 }
 ```
+
+История предназначена только для сотрудников с активной ролью. Очевидец не получает доступ к истории — ни своей, ни чужой.
+
+## GET /api/v1/witnesses/me/active-ban
+
+Возвращает очевидцу только его собственную активную блокировку:
+
+```text
+GET /api/v1/witnesses/me/active-ban?requester_device_id={device_id}
+Authorization: Bearer <access_token>
+```
+
+```json
+{
+  "active": true,
+  "id": "UUID",
+  "ban_level": 1,
+  "issued_at": "2026-08-25T10:00:00Z",
+  "expires_at": "2026-08-26T10:00:00Z",
+  "reason": "Причина блокировки"
+}
+```
+
+Если активной блокировки нет:
+
+```json
+{
+  "active": false
+}
+```
+
+`requester_device_id` обязан совпадать с устройством из Bearer-токена. Сотрудник и другой очевидец получат `403`. Все даты возвращаются в ISO 8601 UTC; у бессрочного бана `expires_at` равен `null`.
 
 ## PATCH /api/v1/witnesses/{witness_id}/bans/{ban_id}/revoke
 

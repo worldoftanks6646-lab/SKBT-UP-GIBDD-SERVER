@@ -9,13 +9,15 @@ from app.models import (
     Device,
     DeviceType,
     Employee,
+    Chat,
     Role,
     RoleAssignment,
     NotificationType,
     Witness,
     WitnessBan,
 )
-from app.schemas.ban import BanCreateRequest, BanListResponse, BanResponse, BanRevokeRequest
+from app.schemas.ban import ActiveBanResponse, BanCreateRequest, BanListResponse, BanResponse, BanRevokeRequest
+from app.services.witness_access import witness_has_active_ban
 from app.services.notification_service import NotificationService
 
 
@@ -141,6 +143,47 @@ class BanService:
             ).all()
         )
         return BanListResponse(items=bans)
+
+    @staticmethod
+    async def own_active_ban(
+        db: AsyncSession, requester_device_id: UUID
+    ) -> ActiveBanResponse:
+        witness = await db.scalar(
+            select(Witness).where(Witness.device_id == requester_device_id)
+        )
+        if witness is None:
+            raise BanPermissionDeniedError(
+                "Only a witness can view its own active ban"
+            )
+        if not await witness_has_active_ban(db, witness):
+            return ActiveBanResponse(active=False)
+        ban = await db.scalar(
+            select(WitnessBan)
+            .where(
+                WitnessBan.witness_id == witness.id,
+                WitnessBan.revoked_at.is_(None),
+                or_(
+                    WitnessBan.expires_at.is_(None),
+                    WitnessBan.expires_at > func.now(),
+                ),
+            )
+            .order_by(WitnessBan.issued_at.desc())
+            .limit(1)
+        )
+        if ban is None:
+            return ActiveBanResponse(active=False)
+        return ActiveBanResponse(
+            active=True,
+            id=ban.id,
+            ban_level=ban.ban_level,
+            issued_at=ban.issued_at,
+            expires_at=ban.expires_at,
+            reason=ban.reason,
+        )
+
+    @staticmethod
+    async def witness_chat_id(db: AsyncSession, witness_id: UUID) -> UUID | None:
+        return await db.scalar(select(Chat.id).where(Chat.witness_id == witness_id))
 
     @staticmethod
     async def revoke(

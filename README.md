@@ -68,6 +68,7 @@ pytest -q
 - `WS /api/v1/ws/chats/{chat_id}?token={access_token}` — защищённые события чата в реальном времени.
 - `POST /api/v1/witnesses/{witness_id}/bans` — выдать бан;
 - `GET /api/v1/witnesses/{witness_id}/bans` — история банов;
+- `GET /api/v1/witnesses/me/active-ban` — собственная активная блокировка очевидца;
 - `PATCH /api/v1/witnesses/{witness_id}/bans/{ban_id}/revoke` — снять бан.
 - `PUT /api/v1/employees/{employee_id}/role` — назначить или изменить роль;
 - `PUT /api/v1/devices/{target_device_id}/role` — назначить роль по значению `device_id`, считанному из QR;

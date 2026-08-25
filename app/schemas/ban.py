@@ -31,3 +31,12 @@ class BanResponse(BaseModel):
 
 class BanListResponse(BaseModel):
     items: list[BanResponse]
+
+
+class ActiveBanResponse(BaseModel):
+    active: bool
+    id: UUID | None = None
+    ban_level: int | None = None
+    issued_at: datetime | None = None
+    expires_at: datetime | None = None
+    reason: str | None = None
