@@ -136,6 +136,7 @@ class RoleService:
             raise RoleConflictError("Role is not configured")
         if current is not None:
             current.revoked_at = datetime.now(timezone.utc)
+            current.revoked_by_employee_id = requester.id
             await db.flush()
         assignment = RoleAssignment(
             employee_id=target.id,
@@ -171,7 +172,7 @@ class RoleService:
     async def revoke(
         db: AsyncSession, employee_id: UUID, requester_device_id: UUID
     ) -> RoleAssignmentResponse:
-        _requester, requester_role = await RoleService._requester(
+        requester, requester_role = await RoleService._requester(
             db, requester_device_id
         )
         if await db.get(Employee, employee_id) is None:
@@ -186,6 +187,7 @@ class RoleService:
             if await RoleService._chief_count(db) <= 1:
                 raise RoleConflictError("The last chief role cannot be revoked")
         assignment.revoked_at = datetime.now(timezone.utc)
+        assignment.revoked_by_employee_id = requester.id
         await NotificationService.notify_chiefs(
             db,
             NotificationType.ROLE_REVOKED,

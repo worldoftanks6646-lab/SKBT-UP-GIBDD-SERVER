@@ -92,6 +92,7 @@ PUT    /api/v1/employees/{employee_id}/role
 PUT    /api/v1/devices/{device_id}/role
 DELETE /api/v1/employees/{employee_id}/role
 GET    /api/v1/employees/{employee_id}/roles/history
+GET    /api/v1/reports/activity.xlsx
 ```
 
 ## GET /api/health
@@ -654,6 +655,33 @@ GET /api/v1/employees/{employee_id}/roles/history?requester_device_id={device_id
 }
 ```
 
+## GET /api/v1/reports/activity.xlsx
+
+Начальник выгружает Excel-отчёт за весь период. Требуется Bearer-токен устройства с активной ролью `chief`.
+
+```http
+GET /api/v1/reports/activity.xlsx?requester_device_id={device_id}
+Authorization: Bearer <access_token>
+```
+
+Ответ `200 OK` — файл `gibdd-report.xlsx` с тремя листами:
+
+- `Баны`: дата и время, ID устройства выдавшего бан, ID устройства очевидца;
+- `Роли`: дата и время, ID устройства инициатора, выдача/замена/удаление роли, ID целевого устройства;
+- `Сообщения`: ID устройства сотрудника и количество отправленных им сообщений.
+
+Отчёт строится по всей истории без ограничения дат. Ошибка `403` возвращается сотруднику без роли Начальника.
+
+Пример Retrofit для получения файла:
+
+```kotlin
+@Streaming
+@GET("api/v1/reports/activity.xlsx")
+suspend fun downloadReport(
+    @Query("requester_device_id") deviceId: String
+): ResponseBody
+```
+
 ## Минимальное подключение приложения Очевидца
 
 1. Получить системные параметры устройства.
@@ -712,7 +740,6 @@ val retrofit = Retrofit.Builder()
 ## Ещё не реализовано
 
 - внешние push-уведомления Android (уведомления внутри API уже реализованы);
-- Excel-отчёты;
 
 Frontend не должен вызывать отсутствующие маршруты до их реализации.
 

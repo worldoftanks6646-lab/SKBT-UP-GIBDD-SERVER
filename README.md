@@ -68,6 +68,7 @@ pytest -q
 - `PUT /api/v1/devices/{device_id}/role` — назначить роль по `device_id` из QR-кода;
 - `DELETE /api/v1/employees/{employee_id}/role` — снять роль;
 - `GET /api/v1/employees/{employee_id}/roles/history` — история ролей.
+- `GET /api/v1/reports/activity.xlsx` — Excel-отчёт Начальника по банам, ролям и сообщениям.
 
 ## Развёртывание
 
