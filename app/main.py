@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api.v1.endpoint import ban, chat, device, location, media, message, notification, push, report, role, websocket
+from app.api.v1.endpoint import ban, chat, device, employee, location, media, message, notification, push, report, role, websocket
 
 app = FastAPI(title="ГИБДД-Очевидец API")
 
@@ -13,6 +13,9 @@ app.add_middleware(
 )
 
 app.include_router(device.router, prefix="/api/v1")
+app.include_router(employee.employee_router, prefix="/api/v1")
+app.include_router(employee.device_router, prefix="/api/v1")
+app.include_router(employee.compatibility_router, prefix="/api/v1")
 app.include_router(chat.router, prefix="/api/v1")
 app.include_router(message.router, prefix="/api/v1")
 app.include_router(message.template_router, prefix="/api/v1")

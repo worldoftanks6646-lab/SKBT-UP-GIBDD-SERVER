@@ -45,6 +45,11 @@ pytest -q
 Подробный контракт и инструкция для frontend находятся в [docs/api.md](docs/api.md).
 
 - `POST /api/v1/devices/register` — регистрация устройства;
+- `GET /api/v1/employee/me` — данные текущего сотрудника;
+- `GET /api/v1/employee/devices` — список устройств сотрудников;
+- `GET /api/v1/employee/devices/{device_id}` — конкретное устройство сотрудника;
+- `GET /api/v1/employees` — список сотрудников;
+- `GET /api/v1/employees/{employee_id}` — конкретный сотрудник;
 - `GET /api/v1/chats` — список чатов для сотрудника;
 - `POST /api/v1/chats/{chat_id}/messages` — отправка сообщения;
 - `GET /api/v1/message-templates` — шаблоны ответов сотрудников;

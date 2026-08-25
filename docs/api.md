@@ -66,6 +66,16 @@ request.newBuilder()
 ```text
 GET    /api/health
 POST   /api/v1/devices/register
+GET    /api/v1/devices
+GET    /api/v1/devices/{device_id}
+
+GET    /api/v1/employees/me
+GET    /api/v1/employees
+GET    /api/v1/employees/{employee_id}
+
+GET    /api/v1/employee/me
+GET    /api/v1/employee/devices
+GET    /api/v1/employee/devices/{device_id}
 
 GET    /api/v1/chats
 POST   /api/v1/chats/{chat_id}/messages
@@ -757,6 +767,71 @@ override fun onNewToken(token: String) {
 
 Для реальной доставки владелец Firebase-проекта должен положить service-account JSON на сервер вне Git и настроить `PUSH_ENABLED=true`, `FCM_PROJECT_ID` и `FCM_SERVICE_ACCOUNT_FILE`. Без ключа регистрация токенов работает, но отправка в FCM безопасно пропускается.
 
+## Данные сотрудника и списки устройств
+
+Все маршруты ниже требуют `Authorization: Bearer <access_token>`.
+
+### GET /api/v1/employee/me
+
+Возвращает данные сотрудника, которому принадлежит Bearer-токен. Параметры не нужны.
+
+```json
+{
+  "id": "8fc9c6b2-33aa-4d60-bb94-a24b648f2a3e",
+  "device_id": "4502a5b0-905d-4160-b4c5-f1b470e0e494",
+  "role": "chief",
+  "registered_at": "2026-08-20T07:00:00Z",
+  "last_activity_at": "2026-08-25T12:00:00Z"
+}
+```
+
+`role` может быть `inspector`, `administrator`, `chief` или `null`, если роль ещё не назначена. Канонический эквивалент: `GET /api/v1/employees/me`.
+
+### GET /api/v1/employee/devices
+
+Возвращает список зарегистрированных устройств сотрудников. Доступен Администратору и Начальнику.
+
+Параметры query:
+
+- `requester_device_id` — UUID устройства из токена, обязателен;
+- `limit` — от 1 до 100, по умолчанию 50;
+- `before` — необязательная ISO 8601 дата для следующей страницы.
+
+```json
+{
+  "items": [
+    {
+      "id": "4502a5b0-905d-4160-b4c5-f1b470e0e494",
+      "type": "employee",
+      "platform": "android",
+      "app_version": "1.0.0",
+      "registered_at": "2026-08-20T07:00:00Z",
+      "last_activity_at": "2026-08-25T12:00:00Z",
+      "employee_id": "8fc9c6b2-33aa-4d60-bb94-a24b648f2a3e",
+      "witness_id": null,
+      "role": "chief",
+      "ban_level": null
+    }
+  ],
+  "next_before": null
+}
+```
+
+`fingerprint_hash` намеренно не возвращается. Администратор видит Инспекторов и Администраторов; Начальник видит всех сотрудников.
+
+### GET /api/v1/employee/devices/{device_id}
+
+Возвращает одно устройство сотрудника. Передайте `requester_device_id` в query. Сотрудник может получить собственное устройство; просмотр чужого устройства подчиняется тем же правам, что и список.
+
+Дополнительные канонические маршруты:
+
+- `GET /api/v1/employees` — список сотрудников;
+- `GET /api/v1/employees/{employee_id}` — сотрудник по `employee_id`;
+- `GET /api/v1/devices?device_type=employee|witness` — список устройств с фильтром;
+- `GET /api/v1/devices/{device_id}` — устройство по `device_id`.
+
+У списков используются параметры `requester_device_id`, `limit` и `before`. Совместимые маршруты `/api/v1/employee/...` добавлены для frontend-контракта из общей таблицы API.
+
 ## Минимальное подключение приложения Очевидца
 
 1. Получить системные параметры устройства.
@@ -775,11 +850,11 @@ override fun onNewToken(token: String) {
 1. Сформировать fingerprint.
 2. Зарегистрироваться с `type: employee`.
 3. Сохранить `device_id`, `employee_id`, `role`.
-4. Устройство без роли пока не имеет доступа к сообщениям.
-5. После назначения роли получить список через `GET /api/v1/chats`.
+4. Устройство без роли пока не имеет доступа к сообщениям, но может получить себя через `GET /api/v1/employee/me`.
+5. После назначения роли получить список чатов через `GET /api/v1/chats`.
 6. Использовать `id` выбранного чата как `chat_id`.
 7. Загружать историю и подключать WebSocket.
-8. Для администратора и начальника использовать маршруты ролей и банов.
+8. Для администратора и начальника использовать маршруты списков устройств, ролей и банов.
 
 ## Чеклист интеграции для frontend
 
@@ -793,6 +868,7 @@ override fun onNewToken(token: String) {
 8. QR содержит только `device_id`; в REST передавать распознанную UUID-строку, а не изображение.
 9. После получения или обновления FCM token вызвать `PUT /devices/{device_id}/push-token`.
 10. После push или восстановления WebSocket синхронизировать данные через REST API.
+11. Для экрана профиля сотрудника использовать `GET /api/v1/employee/me`, для экрана управления — `/api/v1/employee/devices`.
 
 Основные ответы ошибок:
 
@@ -843,7 +919,6 @@ val retrofit = Retrofit.Builder()
 - публичный сервер пока не отправляет push в FCM без service-account JSON, но принимает FCM-токены;
 - автоматический push об окончании временного бана ещё не запускается планировщиком;
 - скрытие забаненного чата у Инспектора/Администратора и очистка видимой истории после окончания бана требуют отдельной доработки;
-- отдельные API списков и профилей устройств сотрудников пока отсутствуют;
 - офлайн-очередь и повтор отправки в течение минуты реализуются на стороне Android;
 - локальные псевдонимы по требованиям хранятся только на устройстве и в API не передаются.
 
