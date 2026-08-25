@@ -11,6 +11,7 @@ from app.models.location import (
 from app.models.message import Message, MessageSenderType, MessageType
 from app.models.message_template import MessageTemplate
 from app.models.notification import Notification, NotificationType
+from app.models.push_token import PushToken
 from app.models.role import Role, RoleCode
 from app.models.role_assignment import RoleAssignment
 from app.models.witness import Witness
@@ -33,6 +34,7 @@ __all__ = [
     "MediaType",
     "Notification",
     "NotificationType",
+    "PushToken",
     "Role",
     "RoleAssignment",
     "RoleCode",

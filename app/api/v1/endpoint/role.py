@@ -12,6 +12,7 @@ from app.services.role_service import (
     RolePermissionDeniedError,
     RoleService,
 )
+from app.services.push_service import PushService
 
 
 router = APIRouter(prefix="/employees", tags=["roles"])
@@ -35,9 +36,13 @@ async def assign_role(
 ) -> RoleAssignmentResponse:
     verify_device_id(authenticated_device_id, request.requester_device_id)
     try:
-        return await RoleService.assign(
+        result = await RoleService.assign(
             db, employee_id, request.requester_device_id, request.role
         )
+        await PushService.notify_chiefs(
+            db, "role.changed", "ГИБДД-Очевидец", "Изменена роль сотрудника", result.id
+        )
+        return result
     except (
         EmployeeNotFoundError,
         RolePermissionDeniedError,
@@ -59,9 +64,13 @@ async def assign_role_by_qr(
 ) -> RoleAssignmentResponse:
     verify_device_id(authenticated_device_id, request.requester_device_id)
     try:
-        return await RoleService.assign_by_device(
+        result = await RoleService.assign_by_device(
             db, target_device_id, request.requester_device_id, request.role
         )
+        await PushService.notify_chiefs(
+            db, "role.changed", "ГИБДД-Очевидец", "Изменена роль сотрудника", result.id
+        )
+        return result
     except (
         EmployeeNotFoundError,
         RolePermissionDeniedError,
@@ -79,7 +88,11 @@ async def revoke_role(
 ) -> RoleAssignmentResponse:
     verify_device_id(authenticated_device_id, requester_device_id)
     try:
-        return await RoleService.revoke(db, employee_id, requester_device_id)
+        result = await RoleService.revoke(db, employee_id, requester_device_id)
+        await PushService.notify_chiefs(
+            db, "role.revoked", "ГИБДД-Очевидец", "Удалена роль сотрудника", result.id
+        )
+        return result
     except (
         EmployeeNotFoundError,
         RolePermissionDeniedError,

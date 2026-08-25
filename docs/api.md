@@ -82,6 +82,8 @@ GET    /api/v1/location-sessions/{session_id}
 PATCH  /api/v1/location-sessions/{session_id}/finish
 GET    /api/v1/notifications
 PATCH  /api/v1/notifications/{notification_id}/read
+PUT    /api/v1/devices/{device_id}/push-token
+DELETE /api/v1/devices/{device_id}/push-token
 WS     /api/v1/ws/chats/{chat_id}?token={access_token}
 
 POST   /api/v1/witnesses/{witness_id}/bans
@@ -682,6 +684,67 @@ suspend fun downloadReport(
 ): ResponseBody
 ```
 
+## Внешние push-уведомления Android (FCM)
+
+После регистрации устройства Android получает FCM token и сохраняет его на backend:
+
+```http
+PUT /api/v1/devices/{device_id}/push-token
+Authorization: Bearer <access_token>
+Content-Type: application/json
+```
+
+```json
+{
+  "token": "FCM registration token устройства"
+}
+```
+
+Ответ не возвращает сам токен:
+
+```json
+{
+  "device_id": "UUID",
+  "registered": true,
+  "updated_at": "2026-08-25T10:00:00Z"
+}
+```
+
+FCM может обновить token в любой момент. В `FirebaseMessagingService.onNewToken()` нужно повторно вызвать этот маршрут. При выходе или отключении уведомлений:
+
+```http
+DELETE /api/v1/devices/{device_id}/push-token
+Authorization: Bearer <access_token>
+```
+
+Backend отправляет push:
+
+- всем сотрудникам с активной ролью — при новом тексте, медиа или геопозиции очевидца;
+- очевидцу — при шаблонном ответе сотрудника;
+- Начальнику — при выдаче/снятии бана и изменении/удалении роли.
+
+В поле `data.event` приходят значения `message.created`, `ban.issued`, `ban.revoked`, `role.changed` или `role.revoked`. Для сообщения также передаются `chat_id`, `message_id` и `message_type`. После push приложение загружает актуальные данные через REST API; содержимое сообщения в push не передаётся.
+
+Минимальная Android-логика:
+
+```kotlin
+FirebaseMessaging.getInstance().token.addOnSuccessListener { token ->
+    // PUT /api/v1/devices/{deviceId}/push-token
+}
+
+override fun onNewToken(token: String) {
+    // повторно отправить token на backend
+}
+```
+
+Для Android 13+ требуется разрешение:
+
+```xml
+<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+```
+
+Для реальной доставки владелец Firebase-проекта должен положить service-account JSON на сервер вне Git и настроить `PUSH_ENABLED=true`, `FCM_PROJECT_ID` и `FCM_SERVICE_ACCOUNT_FILE`. Без ключа регистрация токенов работает, но отправка в FCM безопасно пропускается.
+
 ## Минимальное подключение приложения Очевидца
 
 1. Получить системные параметры устройства.
@@ -737,9 +800,9 @@ val retrofit = Retrofit.Builder()
     .build()
 ```
 
-## Ещё не реализовано
+## Требует внешней настройки
 
-- внешние push-уведомления Android (уведомления внутри API уже реализованы);
+- отправка push через FCM включается после установки service-account JSON владельцем Firebase-проекта;
 
 Frontend не должен вызывать отсутствующие маршруты до их реализации.
 

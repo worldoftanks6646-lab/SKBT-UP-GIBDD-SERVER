@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.api.v1.endpoint import ban, chat, device, location, media, message, notification, report, role, websocket
+from app.api.v1.endpoint import ban, chat, device, location, media, message, notification, push, report, role, websocket
 
 app = FastAPI(title="ГИБДД-Очевидец API")
 
@@ -24,6 +24,7 @@ app.include_router(ban.router, prefix="/api/v1")
 app.include_router(role.router, prefix="/api/v1")
 app.include_router(role.device_role_router, prefix="/api/v1")
 app.include_router(report.router, prefix="/api/v1")
+app.include_router(push.router, prefix="/api/v1")
 
 @app.get("/api/health")
 async def health_check():

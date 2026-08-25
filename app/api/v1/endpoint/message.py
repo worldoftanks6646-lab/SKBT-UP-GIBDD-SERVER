@@ -22,6 +22,7 @@ from app.services.message_service import (
     MessageService,
 )
 from app.services.websocket_manager import chat_connections
+from app.services.push_service import PushService
 
 
 router = APIRouter(prefix="/chats", tags=["messages"])
@@ -50,6 +51,9 @@ async def create_text_message(
         message = await MessageService.create_text_message(
             db, chat_id, request.sender_device_id, request.text
         )
+        await PushService.notify_chat_message(
+            db, chat_id, request.sender_device_id, message.id, message.message_type.value
+        )
         await chat_connections.broadcast(
             chat_id,
             {"event": "message.created", "data": message.model_dump(mode="json")},
@@ -74,6 +78,9 @@ async def create_template_message(
     try:
         message = await MessageService.create_template_message(
             db, chat_id, request.sender_device_id, request.template_id
+        )
+        await PushService.notify_chat_message(
+            db, chat_id, request.sender_device_id, message.id, message.message_type.value
         )
         await chat_connections.broadcast(
             chat_id,

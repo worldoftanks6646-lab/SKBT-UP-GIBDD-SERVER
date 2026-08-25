@@ -12,5 +12,8 @@ class Settings(BaseSettings):
     MEDIA_ROOT: str = "storage/media"
     MEDIA_MAX_SIZE_BYTES: int = 104857600
     MEDIA_TTL_DAYS: int = 7
+    PUSH_ENABLED: bool = False
+    FCM_PROJECT_ID: str | None = None
+    FCM_SERVICE_ACCOUNT_FILE: str | None = None
 
 settings = Settings()

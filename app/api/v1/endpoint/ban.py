@@ -13,6 +13,7 @@ from app.services.ban_service import (
     BanService,
     WitnessNotFoundError,
 )
+from app.services.push_service import PushService
 
 
 router = APIRouter(prefix="/witnesses", tags=["bans"])
@@ -35,7 +36,11 @@ async def issue_ban(
 ) -> BanResponse:
     verify_device_id(authenticated_device_id, request.issued_by_device_id)
     try:
-        return await BanService.issue(db, witness_id, request)
+        result = await BanService.issue(db, witness_id, request)
+        await PushService.notify_chiefs(
+            db, "ban.issued", "ГИБДД-Очевидец", "Очевидцу выдан бан", result.id
+        )
+        return result
     except (WitnessNotFoundError, BanConflictError, BanPermissionDeniedError) as error:
         raise ban_error_to_http(error) from error
 
@@ -64,7 +69,11 @@ async def revoke_ban(
 ) -> BanResponse:
     verify_device_id(authenticated_device_id, request.revoked_by_device_id)
     try:
-        return await BanService.revoke(db, witness_id, ban_id, request)
+        result = await BanService.revoke(db, witness_id, ban_id, request)
+        await PushService.notify_chiefs(
+            db, "ban.revoked", "ГИБДД-Очевидец", "Бан очевидца снят", result.id
+        )
+        return result
     except (
         WitnessNotFoundError,
         BanNotFoundError,

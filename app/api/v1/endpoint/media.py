@@ -15,6 +15,7 @@ from app.services.media_service import (
 )
 from app.services.message_service import ChatAccessDeniedError, ChatNotFoundError, DeviceNotFoundError
 from app.services.websocket_manager import chat_connections
+from app.services.push_service import PushService
 
 
 router = APIRouter(tags=["media"])
@@ -31,6 +32,13 @@ async def upload_media(
     verify_device_id(authenticated_device_id, sender_device_id)
     try:
         result = await MediaService.upload(db, chat_id, sender_device_id, file)
+        await PushService.notify_chat_message(
+            db,
+            chat_id,
+            sender_device_id,
+            result.message.id,
+            result.message.message_type.value,
+        )
         await chat_connections.broadcast(
             chat_id, {"event": "message.created", "data": result.message.model_dump(mode="json")}
         )
