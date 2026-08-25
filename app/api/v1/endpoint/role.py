@@ -54,9 +54,9 @@ async def assign_role(
 @device_role_router.put(
     "/{target_device_id}/role",
     response_model=RoleAssignmentResponse,
-    summary="Assign a role using a device_id scanned from a QR code",
+    summary="Assign a role using a registered employee device ID",
 )
-async def assign_role_by_qr(
+async def assign_role_by_device_id(
     target_device_id: UUID,
     request: RoleChangeRequest,
     db: AsyncSession = Depends(get_db),

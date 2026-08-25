@@ -46,6 +46,12 @@ def media_response(chat_id, sender_id) -> MediaMessageResponse:
     )
 
 
+def test_photo_and_video_have_different_size_limits() -> None:
+    assert MediaService._max_size(MediaType.PHOTO) == 10 * 1024 * 1024
+    assert MediaService._max_size(MediaType.VIDEO) == 100 * 1024 * 1024
+    assert MediaService._max_size(MediaType.GIF) == 100 * 1024 * 1024
+
+
 def test_upload_media_returns_201(monkeypatch) -> None:
     chat_id = uuid4()
     sender_id = uuid4()

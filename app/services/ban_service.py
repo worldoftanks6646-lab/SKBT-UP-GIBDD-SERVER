@@ -11,7 +11,6 @@ from app.models import (
     Employee,
     Role,
     RoleAssignment,
-    RoleCode,
     NotificationType,
     Witness,
     WitnessBan,
@@ -57,13 +56,12 @@ class BanService:
             .where(
                 Device.id == device_id,
                 Device.type == DeviceType.EMPLOYEE,
-                Role.code.in_([RoleCode.ADMINISTRATOR, RoleCode.CHIEF]),
                 RoleAssignment.revoked_at.is_(None),
             )
         )
         if employee is None:
             raise BanPermissionDeniedError(
-                "Only administrator or chief can manage witness bans"
+                "Only employee with an active role can manage witness bans"
             )
         return employee
 

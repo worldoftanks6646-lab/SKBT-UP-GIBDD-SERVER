@@ -11,6 +11,7 @@ class Settings(BaseSettings):
     AUTH_REQUIRED: bool = True
     MEDIA_ROOT: str = "storage/media"
     MEDIA_MAX_SIZE_BYTES: int = 104857600
+    PHOTO_MAX_SIZE_BYTES: int = 10485760
     MEDIA_TTL_DAYS: int = 7
     PUSH_ENABLED: bool = False
     FCM_PROJECT_ID: str | None = None

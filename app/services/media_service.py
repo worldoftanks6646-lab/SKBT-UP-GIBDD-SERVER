@@ -37,6 +37,12 @@ MIME_TYPES = {
 
 class MediaService:
     @staticmethod
+    def _max_size(media_type: MediaType) -> int:
+        if media_type == MediaType.PHOTO:
+            return settings.PHOTO_MAX_SIZE_BYTES
+        return settings.MEDIA_MAX_SIZE_BYTES
+
+    @staticmethod
     async def upload(
         db: AsyncSession, chat_id: UUID, sender_device_id: UUID, file: UploadFile
     ) -> MediaMessageResponse:
@@ -47,6 +53,7 @@ class MediaService:
             raise UnsupportedMediaTypeError("Only JPEG, PNG, GIF, MP4 and MOV are allowed")
 
         media_type, extension = media
+        max_size = MediaService._max_size(media_type)
         storage_key = f"{uuid.uuid4().hex}{extension}"
         media_root = Path(settings.MEDIA_ROOT).resolve()
         media_root.mkdir(parents=True, exist_ok=True)
@@ -57,7 +64,7 @@ class MediaService:
             with temporary_path.open("wb") as target:
                 while chunk := await file.read(1024 * 1024):
                     size += len(chunk)
-                    if size > settings.MEDIA_MAX_SIZE_BYTES:
+                    if size > max_size:
                         raise MediaFileError("Media file is too large")
                     target.write(chunk)
             if size == 0:
