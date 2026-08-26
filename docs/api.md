@@ -284,12 +284,15 @@ GET /api/v1/chats?requester_device_id={device_id}&limit=50
       "created_at": "2026-08-20T07:00:00Z",
       "last_message_at": "2026-08-20T07:14:09Z",
       "last_message_text": "Сообщение очевидца",
-      "unread_count": 1
+      "unread_count": 1,
+      "is_banned": false
     }
   ],
   "next_before": null
 }
 ```
+
+Для `inspector` и `administrator` чаты очевидцев с активным баном не возвращаются. `chief` видит такие чаты с `is_banned: true` и может открыть историю для разбана.
 
 Ошибки:
 
@@ -536,8 +539,11 @@ GET /api/v1/notifications?requester_device_id={device_id}&unread_only=false&limi
       "related_entity_id": "UUID",
       "payload": {
         "witness_id": "UUID",
+        "witness_device_id": "UUID",
+        "actor_employee_id": "UUID",
         "ban_level": 1,
-        "reason": "Нарушение правил"
+        "reason": "Нарушение правил",
+        "issued_at": "2026-08-23T15:30:00+00:00"
       },
       "is_read": false,
       "created_at": "2026-08-23T15:30:00Z",
@@ -560,7 +566,7 @@ PATCH /api/v1/notifications/{notification_id}/read
 }
 ```
 
-Сотрудник может видеть и отмечать только собственные уведомления.
+Только сотрудник с активной ролью `chief` может получать уведомления. Начальник видит и отмечает только собственные записи; остальные роли получают `403`.
 
 ## POST /api/v1/witnesses/{witness_id}/bans
 
@@ -645,6 +651,8 @@ Authorization: Bearer <access_token>
   "comment": "Бан снят"
 }
 ```
+
+Снять активный бан может только сотрудник с ролью `chief`. При успехе сервер сохраняет историю, очищает текущий бан очевидца и отправляет WebSocket-событие `observer_ban_revoked`.
 
 ## PUT /api/v1/employees/{employee_id}/role
 
@@ -799,7 +807,7 @@ Backend отправляет push:
 
 - `message.created` — новое сообщение; содержит `chat_id`, `message_id`, `message_type`;
 - `observer_banned` — очевидцу выдан бан; содержит `ban_id`, `ban_level`, `issued_at`, `expires_at`, `reason`;
-- `observer_ban_revoked` — бан очевидца снят; содержит `ban_id`;
+- `observer_ban_revoked` — бан очевидца снят; содержит `ban_id`, `ban_level`, `issued_at`, `expires_at`, `reason`, `revoked_at`;
 - `observer_ban_expired` — временный бан закончился; содержит `ban_id`;
 - `employee_role_changed` — роль сотрудника назначена или изменена; содержит `assignment_id`, `role`;
 - `employee_role_revoked` — роль сотрудника снята; содержит `assignment_id`, `role`;
@@ -970,14 +978,8 @@ val retrofit = Retrofit.Builder()
     .build()
 ```
 
-## Требует внешней настройки
-
-- отправка push через FCM включается после установки service-account JSON владельцем Firebase-проекта;
-
 ## Текущие ограничения прототипа
 
-- публичный сервер пока не отправляет push в FCM без service-account JSON, но принимает FCM-токены;
-- скрытие забаненного чата у Инспектора/Администратора и очистка видимой истории после окончания бана требуют отдельной доработки;
 - офлайн-очередь и повтор отправки в течение минуты реализуются на стороне Android;
 - локальные псевдонимы по требованиям хранятся только на устройстве и в API не передаются.
 

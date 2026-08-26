@@ -11,6 +11,7 @@ from app.models import (
     Employee,
     Chat,
     Role,
+    RoleCode,
     RoleAssignment,
     NotificationType,
     Witness,
@@ -68,18 +69,56 @@ class BanService:
         return employee
 
     @staticmethod
+    async def _require_chief(db: AsyncSession, device_id: UUID) -> Employee:
+        employee = await db.scalar(
+            select(Employee)
+            .join(Device, Device.id == Employee.device_id)
+            .join(RoleAssignment, RoleAssignment.employee_id == Employee.id)
+            .join(Role, Role.id == RoleAssignment.role_id)
+            .where(
+                Device.id == device_id,
+                Device.type == DeviceType.EMPLOYEE,
+                RoleAssignment.revoked_at.is_(None),
+                Role.code == RoleCode.CHIEF,
+            )
+        )
+        if employee is None:
+            raise BanPermissionDeniedError("Only chief can revoke witness bans")
+        return employee
+
+    @staticmethod
     async def issue(
         db: AsyncSession, witness_id: UUID, payload: BanCreateRequest
     ) -> BanResponse:
         manager = await BanService._require_ban_manager(
             db, payload.issued_by_device_id
         )
-        witness = await db.get(Witness, witness_id)
+        witness = await db.scalar(
+            select(Witness).where(Witness.id == witness_id).with_for_update()
+        )
         if witness is None:
             raise WitnessNotFoundError("Witness not found")
+        now = datetime.now(timezone.utc)
+        expired_bans = list(
+            (
+                await db.scalars(
+                    select(WitnessBan).where(
+                        WitnessBan.witness_id == witness.id,
+                        WitnessBan.is_active.is_(True),
+                        WitnessBan.expires_at.is_not(None),
+                        WitnessBan.expires_at <= now,
+                    )
+                )
+            ).all()
+        )
+        for expired_ban in expired_bans:
+            expired_ban.is_active = False
+        if expired_bans:
+            await db.flush()
         active_ban = await db.scalar(
             select(WitnessBan).where(
                 WitnessBan.witness_id == witness.id,
+                WitnessBan.is_active.is_(True),
                 WitnessBan.revoked_at.is_(None),
                 or_(
                     WitnessBan.expires_at.is_(None),
@@ -96,7 +135,6 @@ class BanService:
                 )
             )
         ) or 0
-        now = datetime.now(timezone.utc)
         ban_level, expires_at = BanService._ban_policy(previous_ban_count, now)
 
         ban = WitnessBan(
@@ -118,8 +156,11 @@ class BanService:
             ban.id,
             {
                 "witness_id": str(witness.id),
+                "witness_device_id": str(witness.device_id),
+                "actor_employee_id": str(manager.id),
                 "ban_level": ban_level,
                 "reason": payload.reason,
+                "issued_at": ban.issued_at.isoformat(),
             },
         )
         await db.commit()
@@ -161,6 +202,7 @@ class BanService:
             select(WitnessBan)
             .where(
                 WitnessBan.witness_id == witness.id,
+                WitnessBan.is_active.is_(True),
                 WitnessBan.revoked_at.is_(None),
                 or_(
                     WitnessBan.expires_at.is_(None),
@@ -189,7 +231,7 @@ class BanService:
     async def revoke(
         db: AsyncSession, witness_id: UUID, ban_id: UUID, payload: BanRevokeRequest
     ) -> BanResponse:
-        manager = await BanService._require_ban_manager(
+        manager = await BanService._require_chief(
             db, payload.revoked_by_device_id
         )
         witness = await db.get(Witness, witness_id)
@@ -198,10 +240,16 @@ class BanService:
         ban = await db.get(WitnessBan, ban_id)
         if ban is None or ban.witness_id != witness.id:
             raise BanNotFoundError("Ban not found")
-        if ban.revoked_at is not None:
-            raise BanConflictError("Ban has already been revoked")
+        now = datetime.now(timezone.utc)
+        if (
+            not ban.is_active
+            or ban.revoked_at is not None
+            or (ban.expires_at is not None and ban.expires_at <= now)
+        ):
+            raise BanConflictError("Ban is no longer active")
 
-        ban.revoked_at = datetime.now(timezone.utc)
+        ban.revoked_at = now
+        ban.is_active = False
         ban.revoked_by_employee_id = manager.id
         ban.comment = payload.comment
         witness.ban_level = 0
@@ -212,7 +260,15 @@ class BanService:
             NotificationType.BAN_REVOKED,
             "witness_ban",
             ban.id,
-            {"witness_id": str(witness.id)},
+            {
+                "witness_id": str(witness.id),
+                "witness_device_id": str(witness.device_id),
+                "actor_employee_id": str(manager.id),
+                "ban_level": ban.ban_level,
+                "reason": ban.reason,
+                "issued_at": ban.issued_at.isoformat(),
+                "revoked_at": ban.revoked_at.isoformat(),
+            },
         )
         await db.commit()
         await db.refresh(ban)

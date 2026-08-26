@@ -134,8 +134,47 @@ async def revoke_ban(
             "observer_ban_revoked",
             "ГИБДД-Очевидец",
             "Блокировка снята",
-            {"ban_id": str(result.id)},
+            {
+                "ban_id": str(result.id),
+                "ban_level": str(result.ban_level),
+                "issued_at": result.issued_at.isoformat().replace("+00:00", "Z"),
+                "expires_at": (
+                    result.expires_at.isoformat().replace("+00:00", "Z")
+                    if result.expires_at is not None
+                    else ""
+                ),
+                "reason": result.reason,
+                "revoked_at": (
+                    result.revoked_at.isoformat().replace("+00:00", "Z")
+                    if result.revoked_at is not None
+                    else ""
+                ),
+            },
         )
+        chat_id = await BanService.witness_chat_id(db, witness_id)
+        if chat_id is not None:
+            await chat_connections.broadcast(
+                chat_id,
+                {
+                    "event": "observer_ban_revoked",
+                    "data": {
+                        "id": str(result.id),
+                        "ban_level": result.ban_level,
+                        "issued_at": result.issued_at.isoformat().replace("+00:00", "Z"),
+                        "expires_at": (
+                            result.expires_at.isoformat().replace("+00:00", "Z")
+                            if result.expires_at is not None
+                            else None
+                        ),
+                        "reason": result.reason,
+                        "revoked_at": (
+                            result.revoked_at.isoformat().replace("+00:00", "Z")
+                            if result.revoked_at is not None
+                            else None
+                        ),
+                    },
+                },
+            )
         return result
     except (
         WitnessNotFoundError,

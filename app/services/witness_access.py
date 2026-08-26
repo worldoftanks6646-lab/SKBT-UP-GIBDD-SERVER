@@ -9,6 +9,7 @@ async def witness_has_active_ban(db: AsyncSession, witness: Witness) -> bool:
     active_ban_id = await db.scalar(
         select(WitnessBan.id).where(
             WitnessBan.witness_id == witness.id,
+            WitnessBan.is_active.is_(True),
             WitnessBan.revoked_at.is_(None),
             or_(WitnessBan.expires_at.is_(None), WitnessBan.expires_at > func.now()),
         )

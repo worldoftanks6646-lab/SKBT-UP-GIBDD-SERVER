@@ -7,7 +7,7 @@ from app.core.database import get_db
 from app.main import app
 from app.models import NotificationType
 from app.schemas.notification import NotificationListResponse, NotificationResponse
-from app.services.notification_service import NotificationService
+from app.services.notification_service import NotificationPermissionDeniedError, NotificationService
 
 
 async def override_db():
@@ -78,3 +78,21 @@ def test_mark_notification_read(monkeypatch) -> None:
 
     assert response.status_code == 200
     assert response.json()["is_read"] is True
+
+
+def test_non_chief_cannot_list_notifications(monkeypatch) -> None:
+    async def list_items(_db, _device_id, _limit, _before, _unread_only):
+        raise NotificationPermissionDeniedError(
+            "Only chief can access internal notifications"
+        )
+
+    monkeypatch.setattr(NotificationService, "list_for_employee", list_items)
+    app.dependency_overrides[get_db] = override_db
+    with TestClient(app) as client:
+        response = client.get(
+            "/api/v1/notifications",
+            params={"requester_device_id": str(uuid4())},
+        )
+    app.dependency_overrides.clear()
+
+    assert response.status_code == 403

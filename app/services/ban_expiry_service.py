@@ -43,6 +43,7 @@ class BanExpiryService:
                 select(WitnessBan.id).where(
                     WitnessBan.witness_id == witness.id,
                     WitnessBan.id != ban.id,
+                    WitnessBan.is_active.is_(True),
                     WitnessBan.revoked_at.is_(None),
                     or_(
                         WitnessBan.expires_at.is_(None),
@@ -51,6 +52,7 @@ class BanExpiryService:
                 )
             )
             ban.expiry_notified_at = now
+            ban.is_active = False
             if active_ban_id is not None:
                 continue
             witness.ban_level = 0

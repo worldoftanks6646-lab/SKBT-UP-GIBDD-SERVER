@@ -10,6 +10,7 @@ from app.schemas.notification import NotificationListResponse, NotificationReadR
 from app.services.notification_service import (
     NotificationEmployeeNotFoundError,
     NotificationNotFoundError,
+    NotificationPermissionDeniedError,
     NotificationService,
 )
 
@@ -31,6 +32,8 @@ async def list_notifications(
         return await NotificationService.list_for_employee(
             db, requester_device_id, limit, before, unread_only
         )
+    except NotificationPermissionDeniedError as error:
+        raise HTTPException(status_code=403, detail=str(error)) from error
     except NotificationEmployeeNotFoundError as error:
         raise HTTPException(status_code=404, detail=str(error)) from error
 
@@ -47,5 +50,7 @@ async def mark_notification_read(
         return await NotificationService.mark_read(
             db, notification_id, payload.requester_device_id
         )
+    except NotificationPermissionDeniedError as error:
+        raise HTTPException(status_code=403, detail=str(error)) from error
     except (NotificationEmployeeNotFoundError, NotificationNotFoundError) as error:
         raise HTTPException(status_code=404, detail=str(error)) from error

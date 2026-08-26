@@ -1,10 +1,10 @@
 from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import func, select
+from sqlalchemy import exists, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models import Chat, Device, DeviceType, Employee, Message, MessageSenderType
+from app.models import Chat, Device, DeviceType, Employee, Message, MessageSenderType, Role, RoleCode, WitnessBan
 from app.models.role_assignment import RoleAssignment
 from app.schemas.chat import ChatListItem, ChatListResponse
 
@@ -19,23 +19,25 @@ class EmployeeRoleRequiredError(PermissionError):
 
 class ChatService:
     @staticmethod
-    async def _authorize_employee(db: AsyncSession, device_id: UUID) -> None:
-        employee_id = await db.scalar(
-            select(Employee.id)
+    async def _authorize_employee(db: AsyncSession, device_id: UUID) -> RoleCode:
+        row = (
+            await db.execute(
+            select(Employee.id, Role.code)
             .join(Device, Device.id == Employee.device_id)
+            .join(RoleAssignment, RoleAssignment.employee_id == Employee.id)
+            .join(Role, Role.id == RoleAssignment.role_id)
             .where(Device.id == device_id, Device.type == DeviceType.EMPLOYEE)
-        )
-        if employee_id is None:
-            raise EmployeeDeviceNotFoundError("Employee device not found")
-
-        active_role = await db.scalar(
-            select(RoleAssignment.id).where(
-                RoleAssignment.employee_id == employee_id,
-                RoleAssignment.revoked_at.is_(None),
+            .where(RoleAssignment.revoked_at.is_(None))
             )
-        )
-        if active_role is None:
+        ).one_or_none()
+        if row is None:
+            employee_exists = await db.scalar(
+                select(Employee.id).join(Device, Device.id == Employee.device_id).where(Device.id == device_id)
+            )
+            if employee_exists is None:
+                raise EmployeeDeviceNotFoundError("Employee device not found")
             raise EmployeeRoleRequiredError("Employee has no assigned role")
+        return row[1]
 
     @staticmethod
     async def list_for_employee(
@@ -44,7 +46,15 @@ class ChatService:
         limit: int,
         before: datetime | None,
     ) -> ChatListResponse:
-        await ChatService._authorize_employee(db, requester_device_id)
+        requester_role = await ChatService._authorize_employee(db, requester_device_id)
+        active_ban = exists(
+            select(WitnessBan.id).where(
+                WitnessBan.witness_id == Chat.witness_id,
+                WitnessBan.is_active.is_(True),
+                WitnessBan.revoked_at.is_(None),
+                or_(WitnessBan.expires_at.is_(None), WitnessBan.expires_at > func.now()),
+            )
+        )
 
         last_text = (
             select(Message.text)
@@ -66,10 +76,12 @@ class ChatService:
         )
         activity_at = func.coalesce(Chat.last_message_at, Chat.created_at)
         statement = (
-            select(Chat, last_text.label("last_message_text"), unread_count.label("unread_count"))
+            select(Chat, last_text.label("last_message_text"), unread_count.label("unread_count"), active_ban.label("is_banned"))
             .order_by(activity_at.desc(), Chat.id.desc())
             .limit(limit + 1)
         )
+        if requester_role != RoleCode.CHIEF:
+            statement = statement.where(~active_ban)
         if before is not None:
             statement = statement.where(activity_at < before)
 
@@ -84,8 +96,9 @@ class ChatService:
                 last_message_at=chat.last_message_at,
                 last_message_text=text,
                 unread_count=count,
+                is_banned=is_banned,
             )
-            for chat, text, count in rows
+            for chat, text, count, is_banned in rows
         ]
         next_before = None
         if has_more and items:

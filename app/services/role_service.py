@@ -150,7 +150,13 @@ class RoleService:
             NotificationType.ROLE_CHANGED,
             "role_assignment",
             assignment.id,
-            {"employee_id": str(target.id), "role": role.code.value},
+            {
+                "employee_id": str(target.id),
+                "target_device_id": str(target.device_id),
+                "actor_employee_id": str(requester.id),
+                "role": role.code.value,
+                "previous_role": current_role.code.value if current_role else None,
+            },
         )
         await db.commit()
         await db.refresh(assignment)
@@ -175,7 +181,8 @@ class RoleService:
         requester, requester_role = await RoleService._requester(
             db, requester_device_id
         )
-        if await db.get(Employee, employee_id) is None:
+        target = await db.get(Employee, employee_id)
+        if target is None:
             raise EmployeeNotFoundError("Employee not found")
         assignment = await RoleService._active_assignment(db, employee_id)
         if assignment is None:
@@ -193,7 +200,12 @@ class RoleService:
             NotificationType.ROLE_REVOKED,
             "role_assignment",
             assignment.id,
-            {"employee_id": str(employee_id), "role": role.code.value},
+            {
+                "employee_id": str(employee_id),
+                "target_device_id": str(target.device_id),
+                "actor_employee_id": str(requester.id),
+                "role": role.code.value,
+            },
         )
         await db.commit()
         await db.refresh(assignment)

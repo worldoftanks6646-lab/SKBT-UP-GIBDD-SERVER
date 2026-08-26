@@ -31,6 +31,7 @@ def test_employee_can_list_chats(monkeypatch) -> None:
                     last_message_at=now,
                     last_message_text="Проверка",
                     unread_count=2,
+                    is_banned=True,
                 )
             ]
         )
@@ -50,6 +51,7 @@ def test_employee_can_list_chats(monkeypatch) -> None:
     assert response.status_code == 200
     assert response.json()["items"][0]["id"] == str(chat_id)
     assert response.json()["items"][0]["unread_count"] == 2
+    assert response.json()["items"][0]["is_banned"] is True
 
 
 def test_employee_without_role_cannot_list_chats(monkeypatch) -> None:

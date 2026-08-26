@@ -11,6 +11,7 @@ class ChatListItem(BaseModel):
     last_message_at: datetime | None
     last_message_text: str | None
     unread_count: int
+    is_banned: bool = False
 
 
 class ChatListResponse(BaseModel):

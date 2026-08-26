@@ -25,15 +25,38 @@ class NotificationNotFoundError(ValueError):
     pass
 
 
+class NotificationPermissionDeniedError(PermissionError):
+    pass
+
+
 class NotificationService:
     @staticmethod
     async def _employee_id(db: AsyncSession, device_id: UUID) -> UUID:
-        employee_id = await db.scalar(
-            select(Employee.id).join(Device, Device.id == Employee.device_id).where(Device.id == device_id)
-        )
-        if employee_id is None:
-            raise NotificationEmployeeNotFoundError("Employee device not found")
-        return employee_id
+        row = (
+            await db.execute(
+                select(Employee.id, Role.code)
+                .join(Device, Device.id == Employee.device_id)
+                .join(RoleAssignment, RoleAssignment.employee_id == Employee.id)
+                .join(Role, Role.id == RoleAssignment.role_id)
+                .where(Device.id == device_id, RoleAssignment.revoked_at.is_(None))
+            )
+        ).one_or_none()
+        if row is None:
+            employee_id = await db.scalar(
+                select(Employee.id)
+                .join(Device, Device.id == Employee.device_id)
+                .where(Device.id == device_id)
+            )
+            if employee_id is None:
+                raise NotificationEmployeeNotFoundError("Employee device not found")
+            raise NotificationPermissionDeniedError(
+                "Only chief can access internal notifications"
+            )
+        if row[1] != RoleCode.CHIEF:
+            raise NotificationPermissionDeniedError(
+                "Only chief can access internal notifications"
+            )
+        return row[0]
 
     @staticmethod
     async def notify_chiefs(

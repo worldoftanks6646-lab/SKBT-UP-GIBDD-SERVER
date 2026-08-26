@@ -215,3 +215,40 @@ def test_witness_cannot_request_active_ban_for_another_device() -> None:
     app.dependency_overrides.clear()
 
     assert response.status_code == 403
+
+
+def test_revoke_ban_broadcasts_websocket_event(monkeypatch) -> None:
+    witness_id = uuid4()
+    device_id = uuid4()
+    chat_id = uuid4()
+    result = ban_response(witness_id, uuid4())
+    result.revoked_at = datetime.now(timezone.utc)
+    events = []
+
+    async def revoke(_db, received_witness_id, received_ban_id, payload):
+        assert received_witness_id == witness_id
+        assert received_ban_id == result.id
+        assert payload.revoked_by_device_id == device_id
+        return result
+
+    async def witness_chat_id(_db, _witness_id):
+        return chat_id
+
+    async def broadcast(received_chat_id, event):
+        assert received_chat_id == chat_id
+        events.append(event)
+
+    monkeypatch.setattr(BanService, "revoke", revoke)
+    monkeypatch.setattr(BanService, "witness_chat_id", witness_chat_id)
+    monkeypatch.setattr(chat_connections, "broadcast", broadcast)
+    app.dependency_overrides[get_db] = override_db
+    with TestClient(app) as client:
+        response = client.patch(
+            f"/api/v1/witnesses/{witness_id}/bans/{result.id}/revoke",
+            json={"revoked_by_device_id": str(device_id), "comment": "Reviewed"},
+        )
+    app.dependency_overrides.clear()
+
+    assert response.status_code == 200
+    assert events[0]["event"] == "observer_ban_revoked"
+    assert events[0]["data"]["revoked_at"].endswith("Z")
