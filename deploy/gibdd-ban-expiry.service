@@ -1,0 +1,16 @@
+[Unit]
+Description=Process expired GIBDD witness bans
+After=network-online.target postgresql.service
+
+[Service]
+Type=oneshot
+User=gibdd
+Group=gibdd
+WorkingDirectory=/opt/gibdd-backend
+EnvironmentFile=/etc/gibdd-backend.env
+ExecStart=/opt/gibdd-backend/.venv/bin/python -m app.tasks.expire_bans
+PrivateTmp=true
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/gibdd-backend

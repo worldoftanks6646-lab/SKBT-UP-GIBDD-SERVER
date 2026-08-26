@@ -101,6 +101,27 @@ class FcmClient:
 
 class PushService:
     @staticmethod
+    async def notify_device(
+        db: AsyncSession,
+        device_id: UUID,
+        event: str,
+        title: str,
+        body: str,
+        data: dict[str, str] | None = None,
+    ) -> None:
+        if not FcmClient.configured():
+            return
+        token = await db.scalar(
+            select(PushToken.token).where(PushToken.device_id == device_id)
+        )
+        if token is None:
+            return
+        payload = {"event": event}
+        if data:
+            payload.update(data)
+        await FcmClient.send([token], title, body, payload)
+
+    @staticmethod
     async def register(
         db: AsyncSession, device_id: UUID, token: str
     ) -> PushTokenResponse:

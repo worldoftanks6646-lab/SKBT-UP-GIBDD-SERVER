@@ -83,4 +83,5 @@ pytest -q
 Шаблоны для Linux хранятся в `deploy/`:
 
 - `gibdd-backend.service` — systemd unit;
+- `gibdd-ban-expiry.service` и `.timer` — обработка окончания временных банов;
 - `nginx.conf` — reverse proxy с поддержкой HTTP и WebSocket.
