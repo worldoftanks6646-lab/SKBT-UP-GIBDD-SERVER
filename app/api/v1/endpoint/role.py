@@ -42,6 +42,14 @@ async def assign_role(
         await PushService.notify_chiefs(
             db, "role.changed", "ГИБДД-Очевидец", "Изменена роль сотрудника", result.id
         )
+        await PushService.notify_employee(
+            db,
+            result.employee_id,
+            "employee_role_changed",
+            "ГИБДД-Очевидец",
+            "Ваша роль изменена",
+            {"assignment_id": str(result.id), "role": result.role.value},
+        )
         return result
     except (
         EmployeeNotFoundError,
@@ -70,6 +78,14 @@ async def assign_role_by_device_id(
         await PushService.notify_chiefs(
             db, "role.changed", "ГИБДД-Очевидец", "Изменена роль сотрудника", result.id
         )
+        await PushService.notify_employee(
+            db,
+            result.employee_id,
+            "employee_role_changed",
+            "ГИБДД-Очевидец",
+            "Ваша роль изменена",
+            {"assignment_id": str(result.id), "role": result.role.value},
+        )
         return result
     except (
         EmployeeNotFoundError,
@@ -91,6 +107,14 @@ async def revoke_role(
         result = await RoleService.revoke(db, employee_id, requester_device_id)
         await PushService.notify_chiefs(
             db, "role.revoked", "ГИБДД-Очевидец", "Удалена роль сотрудника", result.id
+        )
+        await PushService.notify_employee(
+            db,
+            result.employee_id,
+            "employee_role_revoked",
+            "ГИБДД-Очевидец",
+            "Ваша роль снята",
+            {"assignment_id": str(result.id), "role": result.role.value},
         )
         return result
     except (

@@ -795,7 +795,17 @@ Backend отправляет push:
 - очевидцу — при шаблонном ответе сотрудника;
 - Начальнику — при выдаче/снятии бана и изменении/удалении роли.
 
-В поле `data.event` приходят значения `message.created`, `ban.issued`, `ban.revoked`, `role.changed`, `role.revoked` или `observer_ban_expired`. Для сообщения также передаются `chat_id`, `message_id` и `message_type`, а для окончания блокировки — `ban_id`. После push приложение загружает актуальные данные через REST API; содержимое сообщения в push не передаётся.
+В поле `data.event` приходят:
+
+- `message.created` — новое сообщение; содержит `chat_id`, `message_id`, `message_type`;
+- `observer_banned` — очевидцу выдан бан; содержит `ban_id`, `ban_level`, `issued_at`, `expires_at`, `reason`;
+- `observer_ban_revoked` — бан очевидца снят; содержит `ban_id`;
+- `observer_ban_expired` — временный бан закончился; содержит `ban_id`;
+- `employee_role_changed` — роль сотрудника назначена или изменена; содержит `assignment_id`, `role`;
+- `employee_role_revoked` — роль сотрудника снята; содержит `assignment_id`, `role`;
+- `ban.issued`, `ban.revoked`, `role.changed`, `role.revoked` — служебные уведомления Начальника.
+
+После push приложение загружает актуальные данные через REST API. Содержимое сообщения в push не передаётся. Данные блокировки и роли отправляются только на FCM-токен соответствующего устройства; служебные события — активным Начальникам.
 
 Минимальная Android-логика:
 

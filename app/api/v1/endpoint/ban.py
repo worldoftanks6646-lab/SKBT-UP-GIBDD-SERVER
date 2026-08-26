@@ -58,6 +58,24 @@ async def issue_ban(
         await PushService.notify_chiefs(
             db, "ban.issued", "ГИБДД-Очевидец", "Очевидцу выдан бан", result.id
         )
+        await PushService.notify_witness(
+            db,
+            witness_id,
+            "observer_banned",
+            "ГИБДД-Очевидец",
+            "Доступ к приложению ограничен",
+            {
+                "ban_id": str(result.id),
+                "ban_level": str(result.ban_level),
+                "issued_at": result.issued_at.isoformat().replace("+00:00", "Z"),
+                "expires_at": (
+                    result.expires_at.isoformat().replace("+00:00", "Z")
+                    if result.expires_at is not None
+                    else ""
+                ),
+                "reason": result.reason,
+            },
+        )
         chat_id = await BanService.witness_chat_id(db, witness_id)
         if chat_id is not None:
             await chat_connections.broadcast(
@@ -109,6 +127,14 @@ async def revoke_ban(
         result = await BanService.revoke(db, witness_id, ban_id, request)
         await PushService.notify_chiefs(
             db, "ban.revoked", "ГИБДД-Очевидец", "Бан очевидца снят", result.id
+        )
+        await PushService.notify_witness(
+            db,
+            witness_id,
+            "observer_ban_revoked",
+            "ГИБДД-Очевидец",
+            "Блокировка снята",
+            {"ban_id": str(result.id)},
         )
         return result
     except (

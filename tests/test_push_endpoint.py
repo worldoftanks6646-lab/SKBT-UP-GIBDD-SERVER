@@ -1,12 +1,15 @@
 from datetime import datetime, timezone
+from types import SimpleNamespace
+from unittest.mock import AsyncMock
 from uuid import uuid4
 
+import pytest
 from fastapi.testclient import TestClient
 
 from app.core.database import get_db
 from app.main import app
 from app.schemas.push import PushTokenResponse
-from app.services.push_service import PushDeviceNotFoundError, PushService
+from app.services.push_service import FcmClient, PushDeviceNotFoundError, PushService
 
 
 async def override_db():
@@ -81,3 +84,49 @@ def test_short_push_token_is_rejected() -> None:
     app.dependency_overrides.clear()
 
     assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_notify_device_sends_only_to_its_registered_token(monkeypatch) -> None:
+    device_id = uuid4()
+    db = SimpleNamespace(scalar=AsyncMock(return_value="target-fcm-token-value"))
+    sent = []
+
+    monkeypatch.setattr(FcmClient, "configured", classmethod(lambda cls: True))
+
+    async def send(_cls, tokens, title, body, data):
+        sent.append((tokens, title, body, data))
+
+    monkeypatch.setattr(FcmClient, "send", classmethod(send))
+
+    await PushService.notify_device(
+        db,
+        device_id,
+        "observer_banned",
+        "Title",
+        "Body",
+        {"ban_id": "ban-id"},
+    )
+
+    assert sent == [
+        (
+            ["target-fcm-token-value"],
+            "Title",
+            "Body",
+            {"event": "observer_banned", "ban_id": "ban-id"},
+        )
+    ]
+
+
+@pytest.mark.asyncio
+async def test_notify_device_without_token_does_not_send(monkeypatch) -> None:
+    db = SimpleNamespace(scalar=AsyncMock(return_value=None))
+    send = AsyncMock()
+    monkeypatch.setattr(FcmClient, "configured", classmethod(lambda cls: True))
+    monkeypatch.setattr(FcmClient, "send", send)
+
+    await PushService.notify_device(
+        db, uuid4(), "event", "Title", "Body"
+    )
+
+    send.assert_not_awaited()

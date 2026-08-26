@@ -122,6 +122,40 @@ class PushService:
         await FcmClient.send([token], title, body, payload)
 
     @staticmethod
+    async def notify_witness(
+        db: AsyncSession,
+        witness_id: UUID,
+        event: str,
+        title: str,
+        body: str,
+        data: dict[str, str] | None = None,
+    ) -> None:
+        if not FcmClient.configured():
+            return
+        device_id = await db.scalar(
+            select(Witness.device_id).where(Witness.id == witness_id)
+        )
+        if device_id is not None:
+            await PushService.notify_device(db, device_id, event, title, body, data)
+
+    @staticmethod
+    async def notify_employee(
+        db: AsyncSession,
+        employee_id: UUID,
+        event: str,
+        title: str,
+        body: str,
+        data: dict[str, str] | None = None,
+    ) -> None:
+        if not FcmClient.configured():
+            return
+        device_id = await db.scalar(
+            select(Employee.device_id).where(Employee.id == employee_id)
+        )
+        if device_id is not None:
+            await PushService.notify_device(db, device_id, event, title, body, data)
+
+    @staticmethod
     async def register(
         db: AsyncSession, device_id: UUID, token: str
     ) -> PushTokenResponse:
