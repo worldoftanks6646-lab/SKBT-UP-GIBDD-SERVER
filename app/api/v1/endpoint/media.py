@@ -36,6 +36,7 @@ async def upload_media(
             db,
             chat_id,
             sender_device_id,
+            result.message.sender_type.value,
             result.message.id,
             result.message.message_type.value,
         )

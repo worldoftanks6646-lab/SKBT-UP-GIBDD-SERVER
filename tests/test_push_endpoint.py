@@ -130,3 +130,43 @@ async def test_notify_device_without_token_does_not_send(monkeypatch) -> None:
     )
 
     send.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_employee_message_push_is_sent_only_to_chat_witness(monkeypatch) -> None:
+    chat_id = uuid4()
+    sender_device_id = uuid4()
+    message_id = uuid4()
+    db = SimpleNamespace(scalar=AsyncMock(return_value="witness-fcm-token-value"))
+    sent = []
+
+    monkeypatch.setattr(FcmClient, "configured", classmethod(lambda cls: True))
+
+    async def send(_cls, tokens, title, body, data):
+        sent.append((tokens, title, body, data))
+
+    monkeypatch.setattr(FcmClient, "send", classmethod(send))
+
+    await PushService.notify_chat_message(
+        db,
+        chat_id,
+        sender_device_id,
+        "employee",
+        message_id,
+        "text",
+    )
+
+    assert sent == [
+        (
+            ["witness-fcm-token-value"],
+            "ГИБДД-Очевидец",
+            "Новое сообщение",
+            {
+                "event": "message.created",
+                "chat_id": str(chat_id),
+                "message_id": str(message_id),
+                "message_type": "text",
+            },
+        )
+    ]
+    db.scalar.assert_awaited_once()

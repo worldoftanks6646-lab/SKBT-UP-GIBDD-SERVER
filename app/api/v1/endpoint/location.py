@@ -43,6 +43,7 @@ async def create_static_location(chat_id: UUID, payload: LocationPointCreate, db
             db,
             chat_id,
             payload.sender_device_id,
+            result.message.sender_type.value,
             result.message.id,
             result.message.message_type.value,
         )
@@ -61,6 +62,7 @@ async def start_live_location(chat_id: UUID, payload: LiveLocationStart, db: Asy
             db,
             chat_id,
             payload.sender_device_id,
+            result.message.sender_type.value,
             result.message.id,
             result.message.message_type.value,
         )

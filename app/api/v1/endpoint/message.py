@@ -52,7 +52,12 @@ async def create_text_message(
             db, chat_id, request.sender_device_id, request.text
         )
         await PushService.notify_chat_message(
-            db, chat_id, request.sender_device_id, message.id, message.message_type.value
+            db,
+            chat_id,
+            request.sender_device_id,
+            message.sender_type.value,
+            message.id,
+            message.message_type.value,
         )
         await chat_connections.broadcast(
             chat_id,
@@ -80,7 +85,12 @@ async def create_template_message(
             db, chat_id, request.sender_device_id, request.template_id
         )
         await PushService.notify_chat_message(
-            db, chat_id, request.sender_device_id, message.id, message.message_type.value
+            db,
+            chat_id,
+            request.sender_device_id,
+            message.sender_type.value,
+            message.id,
+            message.message_type.value,
         )
         await chat_connections.broadcast(
             chat_id,

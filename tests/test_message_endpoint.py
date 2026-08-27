@@ -13,6 +13,7 @@ from app.schemas.message import (
     MessageTemplateResponse,
 )
 from app.services.message_service import ChatAccessDeniedError, MessageService
+from app.services.push_service import PushService
 
 
 async def override_db():
@@ -201,6 +202,7 @@ def test_employee_sends_template(monkeypatch) -> None:
     template_id = uuid4()
     item = message_response(chat_id, sender_id)
     item.sender_type = MessageSenderType.EMPLOYEE
+    push_calls = []
 
     async def create_template(_db, received_chat_id, received_sender_id, received_template_id):
         assert received_chat_id == chat_id
@@ -208,7 +210,20 @@ def test_employee_sends_template(monkeypatch) -> None:
         assert received_template_id == template_id
         return item
 
+    async def notify_message(
+        _db,
+        received_chat_id,
+        received_sender_id,
+        sender_type,
+        message_id,
+        message_type,
+    ):
+        push_calls.append(
+            (received_chat_id, received_sender_id, sender_type, message_id, message_type)
+        )
+
     monkeypatch.setattr(MessageService, "create_template_message", create_template)
+    monkeypatch.setattr(PushService, "notify_chat_message", notify_message)
     app.dependency_overrides[get_db] = override_db
     client = TestClient(app)
     try:
@@ -222,3 +237,4 @@ def test_employee_sends_template(monkeypatch) -> None:
 
     assert response.status_code == 201
     assert response.json()["sender_type"] == "employee"
+    assert push_calls == [(chat_id, sender_id, "employee", item.id, "text")]

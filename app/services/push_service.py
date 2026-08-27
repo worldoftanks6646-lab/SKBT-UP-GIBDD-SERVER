@@ -16,6 +16,7 @@ from app.models import (
     Device,
     DeviceType,
     Employee,
+    MessageSenderType,
     PushToken,
     Role,
     RoleAssignment,
@@ -237,14 +238,25 @@ class PushService:
         db: AsyncSession,
         chat_id: UUID,
         sender_device_id: UUID,
+        sender_type: str,
         message_id: UUID,
         message_type: str,
     ) -> None:
         if not FcmClient.configured():
             return
-        tokens = await PushService._chat_recipient_tokens(
-            db, chat_id, sender_device_id
-        )
+        if sender_type == MessageSenderType.EMPLOYEE.value:
+            token = await db.scalar(
+                select(PushToken.token)
+                .join(Device, Device.id == PushToken.device_id)
+                .join(Witness, Witness.device_id == Device.id)
+                .join(Chat, Chat.witness_id == Witness.id)
+                .where(Chat.id == chat_id)
+            )
+            tokens = [token] if token is not None else []
+        else:
+            tokens = await PushService._chat_recipient_tokens(
+                db, chat_id, sender_device_id
+            )
         await FcmClient.send(
             tokens,
             "ГИБДД-Очевидец",
