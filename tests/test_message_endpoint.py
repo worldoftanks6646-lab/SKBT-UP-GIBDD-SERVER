@@ -151,23 +151,43 @@ def test_mark_message_as_read(monkeypatch) -> None:
     assert response.json()["read_at"] is not None
 
 
-def test_employee_arbitrary_text_is_rejected(monkeypatch) -> None:
-    async def create_message(_db, _chat_id, _sender_id, _text):
-        raise ChatAccessDeniedError("Employee must send a predefined message template")
+def test_employee_can_send_regular_text_and_witness_gets_push(monkeypatch) -> None:
+    chat_id = uuid4()
+    sender_id = uuid4()
+    item = message_response(chat_id, sender_id)
+    item.sender_type = MessageSenderType.EMPLOYEE
+    item.text = "Обычный ответ сотрудника"
+    push_calls = []
+
+    async def create_message(_db, received_chat_id, received_sender_id, text):
+        assert received_chat_id == chat_id
+        assert received_sender_id == sender_id
+        assert text == "Обычный ответ сотрудника"
+        return item
+
+    async def notify_message(
+        _db, received_chat_id, received_sender_id, sender_type, message_id, message_type
+    ):
+        push_calls.append(
+            (received_chat_id, received_sender_id, sender_type, message_id, message_type)
+        )
 
     monkeypatch.setattr(MessageService, "create_text_message", create_message)
+    monkeypatch.setattr(PushService, "notify_chat_message", notify_message)
     app.dependency_overrides[get_db] = override_db
-    client = TestClient(app)
-    try:
+    with TestClient(app) as client:
         response = client.post(
-            f"/api/v1/chats/{uuid4()}/messages",
-            json={"sender_device_id": str(uuid4()), "text": "Произвольный ответ"},
+            f"/api/v1/chats/{chat_id}/messages",
+            json={
+                "sender_device_id": str(sender_id),
+                "text": "Обычный ответ сотрудника",
+            },
         )
-    finally:
-        client.close()
-        app.dependency_overrides.clear()
+    app.dependency_overrides.clear()
 
-    assert response.status_code == 403
+    assert response.status_code == 201
+    assert response.json()["sender_type"] == "employee"
+    assert push_calls == [(chat_id, sender_id, "employee", item.id, "text")]
 
 
 def test_list_employee_templates(monkeypatch) -> None:
