@@ -13,6 +13,18 @@ Backend информационной системы «ГИБДД-Очевиде�
 
 Docker в проекте не используется.
 
+## Админ-панель
+
+После серверной настройки панель управления устройствами и ролями доступна отдельно от API:
+
+```text
+https://SERVER_NAME:4411/admin
+```
+
+Учётные данные и `device_id` Начальника задаются только в `/etc/gibdd-backend.env` через `ADMIN_USERNAME`, `ADMIN_PASSWORD_HASH`, `ADMIN_SESSION_SECRET` и `ADMIN_ACTOR_DEVICE_ID`. Пароль в Git не хранится.
+
+Подробности: [docs/admin.md](docs/admin.md).
+
 Тестовый API запущен и доступен на публичном порту `4402`:
 
 ```text

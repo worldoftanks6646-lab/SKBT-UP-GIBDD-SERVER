@@ -16,5 +16,9 @@ class Settings(BaseSettings):
     PUSH_ENABLED: bool = False
     FCM_PROJECT_ID: str | None = None
     FCM_SERVICE_ACCOUNT_FILE: str | None = None
+    ADMIN_USERNAME: str = "admin"
+    ADMIN_PASSWORD_HASH: str | None = None
+    ADMIN_SESSION_SECRET: str | None = None
+    ADMIN_ACTOR_DEVICE_ID: str | None = None
 
 settings = Settings()
