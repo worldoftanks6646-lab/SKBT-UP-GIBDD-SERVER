@@ -99,6 +99,10 @@ class MessageService:
     ) -> MessageResponse:
         chat = await MessageService._get_chat(db, chat_id)
         sender = await MessageService._authorize_device(db, chat, sender_device_id)
+        if sender.type == DeviceType.EMPLOYEE:
+            raise ChatAccessDeniedError(
+                "Employee must send a predefined message template"
+            )
         sender_type = (
             MessageSenderType.WITNESS
             if sender.type == DeviceType.WITNESS
