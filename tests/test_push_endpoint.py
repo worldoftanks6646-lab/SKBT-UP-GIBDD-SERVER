@@ -165,7 +165,7 @@ async def test_employee_message_push_is_sent_only_to_chat_witness(monkeypatch) -
                 "event": "message.created",
                 "chat_id": str(chat_id),
                 "message_id": str(message_id),
-                "message_type": "text",
+                "chat_message_type": "text",
             },
         )
     ]

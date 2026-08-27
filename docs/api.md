@@ -805,7 +805,7 @@ Backend отправляет push:
 
 В поле `data.event` приходят:
 
-- `message.created` — новое сообщение; содержит `chat_id`, `message_id`, `message_type`;
+- `message.created` — новое сообщение; FCM `data` содержит `chat_id`, `message_id`, `chat_message_type`. Название `message_type` в FCM использовать нельзя: это зарезервированный Firebase ключ. В REST и WebSocket поле по-прежнему называется `message_type`;
 - `observer_banned` — очевидцу выдан бан; содержит `ban_id`, `ban_level`, `issued_at`, `expires_at`, `reason`;
 - `observer_ban_revoked` — бан очевидца снят; содержит `ban_id`, `ban_level`, `issued_at`, `expires_at`, `reason`, `revoked_at`;
 - `observer_ban_expired` — временный бан закончился; содержит `ban_id`;

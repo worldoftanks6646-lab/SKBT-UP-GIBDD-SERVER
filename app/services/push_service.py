@@ -85,6 +85,20 @@ class FcmClient:
                         },
                     )
                     response.raise_for_status()
+                except httpx.HTTPStatusError as error:
+                    payload = error.response.json().get("error", {})
+                    error_codes = [
+                        detail.get("errorCode")
+                        for detail in payload.get("details", [])
+                        if detail.get("errorCode")
+                    ]
+                    logger.error(
+                        "FCM push rejected: http=%s status=%s error_codes=%s message=%s",
+                        error.response.status_code,
+                        payload.get("status"),
+                        error_codes,
+                        payload.get("message"),
+                    )
                 except Exception:
                     logger.exception("FCM push delivery failed")
 
@@ -265,7 +279,7 @@ class PushService:
                 "event": "message.created",
                 "chat_id": str(chat_id),
                 "message_id": str(message_id),
-                "message_type": message_type,
+                "chat_message_type": message_type,
             },
         )
 
